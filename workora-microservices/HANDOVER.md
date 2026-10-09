@@ -43,6 +43,13 @@ The importable Postman Collection remains at `postman/Workora.postman_collection
 - The frontend calls `GET /api/dashboard/api/v1/dashboard/summary` and expects metrics, status breakdown, a 14-day task chart, recent activity, and active project cards.
 - `DashboardAggregationService` aggregates user-scoped companies/projects/phases/tasks/bugs/members and unread notifications, forwarding the caller JWT to each owning service.
 - The separate admin overview uses `GET /api/dashboard/api/v1/dashboard/admin/summary` and aggregates eight owner-service count APIs. Each metric is read from its owning service database and requires the Keycloak realm ADMIN role.
+
+## Platform Admin role boundary and GitHub Actions
+
+- Platform Admin is the global Identity `ADMIN` role and is independent of company membership. `CompanyRole` remains limited to company-scoped roles; it does not contain or grant the platform role.
+- The shared repository CI workflow is at `../.github/workflows/ci.yml`. Its backend job uses Java 17 and runs focused admin authorization, dashboard-health, and membership tests from this repository.
+- Keep platform role approval and signed-token authorization separate from organization membership permissions.
+- Validation: all 22 selected backend tests passed using Java 17; workflow YAML parsed successfully and `git diff --check` passed.
 - The existing response DTO is preserved. It calculates active projects, today's due tasks, open bugs, unique team members, phase completion, task status counts, a 14-day task chart, recent project/task/bug activity, and up to five active project summaries.
 - Downstream failures are allowed to surface; they are not converted into success-shaped empty data.
 - Compose supplies the internal service URLs and starts the dashboard after its API dependencies.

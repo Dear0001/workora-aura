@@ -100,3 +100,10 @@ No further implementation is pending in this approved batch. Continue with the s
 - The subscription screen edits current owner-user subscription records; it does not represent company-scoped billing or provider charges.
 - Company suspension is identified as limited in the UI so it is not mistaken for platform-wide enforcement.
 - `npm run type-check` and focused lint over all new admin routes/API files passed. `git diff --check` passed.
+
+## Platform Admin role boundary and GitHub Actions
+
+- Platform Admin is a global identity role, independent of a company. Organization membership roles (`OWNER`, `ADMIN`, `PROJECT_MANAGER`, `DEVELOPER`, `TESTER`, and `BUG_HUNTER`) remain company-scoped and do not grant platform administration.
+- The shared repository CI workflow is at `../.github/workflows/ci.yml`. Its frontend job runs `npm ci` and `npm run type-check` from this repository.
+- Frontend lint is not currently a CI gate because the existing project-wide lint command has known baseline failures outside the admin changes.
+- Validation: `npm run type-check` passed; workflow YAML parsed successfully and `git diff --check` passed.
