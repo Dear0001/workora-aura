@@ -1,0 +1,53 @@
+﻿server:
+  port: ${BUG_SERVICE_PORT:8105}
+
+storage:
+  minio:
+    endpoint: ${STORAGE_MINIO_ENDPOINT:http://localhost:9000}
+    presign-endpoint: ${STORAGE_MINIO_PRESIGN_ENDPOINT:http://localhost:9000}
+    access-key: ${STORAGE_MINIO_ACCESS_KEY:}
+    secret-key: ${STORAGE_MINIO_SECRET_KEY:}
+    bucket: ${STORAGE_MINIO_BUCKET:workora-files}
+    presign-minutes: ${STORAGE_MINIO_PRESIGN_MINUTES:15}
+
+spring:
+  application:
+    name: bug-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5437/bug_db}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: ${JPA_FORMAT_SQL:true}
+    open-in-view: ${JPA_OPEN_IN_VIEW:false}
+    database-platform: ${JPA_DATABASE_PLATFORM:org.hibernate.dialect.PostgreSQLDialect}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/workora}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/workora/protocol/openid-connect/certs}
+
+organization-service:
+  base-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8102}
+project-service:
+  base-url: ${PROJECT_SERVICE_URL:http://project-service:8103}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health,info}
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_HEALTH_DETAILS:always}
+
+springdoc:
+  swagger-ui:
+    config-url: /bug/v3/api-docs/swagger-config
+    url: /bug/v3/api-docs

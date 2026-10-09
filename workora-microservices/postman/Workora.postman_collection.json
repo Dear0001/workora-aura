@@ -1,0 +1,4201 @@
+{
+  "info": {
+    "name": "Workora Backend API",
+    "description": "Implemented backend controller routes, organized by service. Set baseUrl and accessToken in collection variables. Default gateway base URL: http://localhost:8080. JSON request bodies include example fields based on backend request DTOs; replace IDs, enum values, credentials, and storage keys with valid local values. Auth and health routes use noauth; other requests inherit bearer auth. Shared storage routes are included under all six mounting service prefixes: identity, organization, project, work, bug, and recruitment. Compatibility aliases are labeled. Examples are not guaranteed to satisfy cross-resource ownership or business-state preconditions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "PASTE_ACCESS_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "callbackSecret",
+      "value": "SET_IF_CONFIGURED",
+      "type": "string"
+    },
+    {
+      "key": "page",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "pageSize",
+      "value": "20",
+      "type": "string"
+    },
+    {
+      "key": "search",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sort",
+      "value": "createdAt,desc",
+      "type": "string"
+    },
+    {
+      "key": "unreadOnly",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "key",
+      "value": "REPLACE_WITH_STORAGE_OBJECT_KEY",
+      "type": "string"
+    },
+    {
+      "key": "qrPayload",
+      "value": "REPLACE_WITH_QR_PAYLOAD",
+      "type": "string"
+    },
+    {
+      "key": "applicationId",
+      "value": "REPLACE_WITH_APPLICATION_ID",
+      "type": "string"
+    },
+    {
+      "key": "attachmentId",
+      "value": "REPLACE_WITH_ATTACHMENT_ID",
+      "type": "string"
+    },
+    {
+      "key": "companyId",
+      "value": "REPLACE_WITH_COMPANY_ID",
+      "type": "string"
+    },
+    {
+      "key": "departmentId",
+      "value": "REPLACE_WITH_DEPARTMENT_ID",
+      "type": "string"
+    },
+    {
+      "key": "evidenceId",
+      "value": "REPLACE_WITH_EVIDENCE_ID",
+      "type": "string"
+    },
+    {
+      "key": "invitationId",
+      "value": "REPLACE_WITH_INVITATION_ID",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "REPLACE_WITH_JOB_ID",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "REPLACE_WITH_NOTIFICATION_ID",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "REPLACE_WITH_PAYMENT_ID",
+      "type": "string"
+    },
+    {
+      "key": "phaseId",
+      "value": "REPLACE_WITH_PHASE_ID",
+      "type": "string"
+    },
+    {
+      "key": "postId",
+      "value": "REPLACE_WITH_POST_ID",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "REPLACE_WITH_PROJECT_ID",
+      "type": "string"
+    },
+    {
+      "key": "reportId",
+      "value": "REPLACE_WITH_REPORT_ID",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "REPLACE_WITH_TASK_ID",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "REPLACE_WITH_VERIFICATION_SESSION_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "REPLACE_WITH_USER_ID",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "developer@example.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "REPLACE_WITH_PASSWORD",
+      "type": "string"
+    },
+    {
+      "key": "newPassword",
+      "value": "REPLACE_WITH_NEW_PASSWORD",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "REPLACE_WITH_REFRESH_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "verificationCode",
+      "value": "REPLACE_WITH_6_DIGIT_CODE",
+      "type": "string"
+    },
+    {
+      "key": "invitationToken",
+      "value": "REPLACE_WITH_INVITATION_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "storageKey",
+      "value": "REPLACE_WITH_PRESIGNED_STORAGE_OBJECT_KEY",
+      "type": "string"
+    },
+    {
+      "key": "providerReference",
+      "value": "REPLACE_WITH_PROVIDER_TRANSACTION_REFERENCE",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Identity",
+      "item": [
+        {
+          "name": "POST Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/register",
+              "query": []
+            },
+            "description": "Request body DTO: RegisterRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic registration\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"developer@example.com\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Morgan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/registration-verification-sessions/{{token}}",
+              "query": []
+            },
+            "description": "Public verification status",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/login",
+              "query": []
+            },
+            "description": "Request body DTO: LoginRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic login\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/refresh",
+              "query": []
+            },
+            "description": "Request body DTO: RefreshTokenRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic token refresh\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/logout",
+              "query": []
+            },
+            "description": "Request body DTO: LogoutRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic logout\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Password Reset Requests",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/password-reset-requests",
+              "query": []
+            },
+            "description": "Request body DTO: PasswordResetRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic password reset request\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Verification Email Requests",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/verification-email-requests",
+              "query": []
+            },
+            "description": "Request body DTO: PasswordResetRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic verification email request\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Password Resets",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/auth/password-resets",
+              "query": []
+            },
+            "description": "Request body DTO: ResetPasswordRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nPublic password reset\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"token\": \"{{verificationCode}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/users/me",
+              "query": []
+            },
+            "description": "Current user profile"
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/users/me",
+              "query": []
+            },
+            "description": "Request body DTO: UpdateUserRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nUpdate current user profile\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Morgan\",\n  \"gender\": \"UNSPECIFIED\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"avatarUrl\": \"https://example.com/avatar.png\",\n  \"bio\": \"Software developer profile bio.\",\n  \"experience\": \"Five years of application development experience.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Organization",
+      "item": [
+        {
+          "name": "POST Companies",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies",
+              "query": []
+            },
+            "description": "Request body DTO: CompanyRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example Software Studio\",\n  \"description\": \"Example company for API requests.\",\n  \"contactEmail\": \"{{email}}\",\n  \"contactPhone\": \"+1-555-0100\",\n  \"address\": \"100 Example Street, Example City\",\n  \"profileImageUrl\": \"https://example.com/company-logo.png\",\n  \"coverImageUrl\": \"https://example.com/company-cover.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies?page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{search}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paged company listing"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Companyid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Companyid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}",
+              "query": []
+            },
+            "description": "Request body DTO: CompanyUpdateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example Software Studio\",\n  \"description\": \"Updated company description.\",\n  \"contactEmail\": \"{{email}}\",\n  \"contactPhone\": \"+1-555-0100\",\n  \"address\": \"100 Example Street, Example City\",\n  \"profileImageUrl\": \"https://example.com/company-logo.png\",\n  \"coverImageUrl\": \"https://example.com/company-cover.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Companyid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/companies/{companyId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Ratings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/ratings",
+              "query": []
+            },
+            "description": "Request body DTO: CompanyRatingRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 5,\n  \"review\": \"Clear communication and great collaboration.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Ratings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/ratings?page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paged company ratings"
+          },
+          "response": []
+        },
+        {
+          "name": "POST Departments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/departments",
+              "query": []
+            },
+            "description": "Request body DTO: DepartmentRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Engineering\",\n  \"description\": \"Product engineering team.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Departments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/departments",
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{search}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}/departments."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Departmentid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/departments/{{departmentId}}",
+              "query": []
+            },
+            "description": "Request body DTO: DepartmentRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Engineering\",\n  \"description\": \"Product engineering team.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Departmentid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/departments/{{departmentId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/companies/{companyId}/departments/{departmentId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Departmentid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/departments/{{departmentId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/departments/{departmentId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/departments/{{departmentId}}/members",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/departments/{departmentId}/members."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Userid",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/departments/{{departmentId}}/members/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/departments/{departmentId}/members/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Userid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/departments/{{departmentId}}/members/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/departments/{departmentId}/members/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Invitations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/invitations",
+              "query": []
+            },
+            "description": "Request body DTO: InvitationRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"role\": \"DEVELOPER\",\n  \"departmentId\": \"{{departmentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Invitations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/invitations",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}/invitations."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Pending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/invitations/pending",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/invitations/pending."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Invitationid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/invitations/{{invitationId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/companies/{companyId}/invitations/{invitationId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Accept",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/invitations/accept",
+              "query": []
+            },
+            "description": "Request body DTO: AcceptInvitationRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{invitationToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Accept",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/invitations/{{invitationId}}/accept",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/invitations/{invitationId}/accept."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Accept",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/invitations/{{invitationId}}/accept",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/companies/{companyId}/invitations/{invitationId}/accept."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members",
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{search}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Array response; optional search"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members/me",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}/members/me."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Audit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members/{{userId}}/audit",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}/members/{userId}/audit."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Userid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members/{{userId}}",
+              "query": []
+            },
+            "description": "Request body DTO: ChangeRoleRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"DEVELOPER\",\n  \"departmentId\": \"{{departmentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Roles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members/{{userId}}/roles",
+              "query": []
+            },
+            "description": "Request body DTO: ChangeRoleRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"DEVELOPER\",\n  \"departmentId\": \"{{departmentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Roles",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members/{{userId}}/roles",
+              "query": []
+            },
+            "description": "Request body DTO: ChangeRoleRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"DEVELOPER\",\n  \"departmentId\": \"{{departmentId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Userid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/companies/{{companyId}}/members/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/companies/{companyId}/members/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/subscription/me",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/subscription/me."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Project",
+      "item": [
+        {
+          "name": "POST Projects",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/departments/{{departmentId}}/projects",
+              "query": []
+            },
+            "description": "Request body DTO: ProjectRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example project\",\n  \"description\": \"A sample project for API testing.\",\n  \"projectManagerId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/companies/{{companyId}}/projects?page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paged company projects"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Projectid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/projects/{projectId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Projectid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}",
+              "query": []
+            },
+            "description": "Request body DTO: ProjectUpdateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated example project\",\n  \"description\": \"Updated project description.\",\n  \"projectManagerId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Projectid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}",
+              "query": []
+            },
+            "description": "Compatibility archive operation"
+          },
+          "response": []
+        },
+        {
+          "name": "POST Archive",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}/archive",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/projects/{projectId}/archive."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}/members",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/projects/{projectId}/members."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Userid",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}/managers/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/projects/{projectId}/managers/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Phases",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}/phases",
+              "query": []
+            },
+            "description": "Request body DTO: PhaseRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Initial delivery\",\n  \"description\": \"First project phase.\",\n  \"visibility\": \"PRIVATE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Phases",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/projects/{{projectId}}/phases",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/projects/{projectId}/phases."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Phaseid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/phases/{phaseId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Phaseid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}",
+              "query": []
+            },
+            "description": "Request body DTO: PhaseUpdateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated delivery phase\",\n  \"description\": \"Updated phase description.\",\n  \"visibility\": \"PRIVATE\",\n  \"status\": \"DRAFT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Phaseid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/phases/{phaseId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Publish",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/publish",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/phases/{phaseId}/publish."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Hide",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/hide",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/phases/{phaseId}/hide."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Close",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/close",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/phases/{phaseId}/close."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Members",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/members",
+              "query": []
+            },
+            "description": "Request body DTO: PhaseMemberRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Userid",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/members/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/phases/{phaseId}/members/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/members",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/phases/{phaseId}/members."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Userid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/members/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/phases/{phaseId}/members/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Bug Fix Jobs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/bug-fix-jobs",
+              "query": []
+            },
+            "description": "Request body DTO: BugFixJobRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Investigate sample UI issue\",\n  \"summary\": \"Reproduce and resolve a sample UI defect.\",\n  \"productType\": \"Web application\",\n  \"techStack\": \"Next.js, TypeScript\",\n  \"versionBuild\": \"1.0.0\",\n  \"environments\": \"Staging browser environment\",\n  \"scope\": \"Investigate the reported UI behavior and provide a fix.\",\n  \"outOfScope\": \"Production data changes.\",\n  \"authorizedTestingRules\": \"Use only the assigned staging environment.\",\n  \"accessMethod\": \"Use the provided test account.\",\n  \"category\": \"FUNCTIONAL\",\n  \"severityCriteria\": \"User-facing workflow is blocked.\",\n  \"reproductionRequirements\": \"Include repeatable steps and observed result.\",\n  \"evidenceRequirements\": \"Attach a screenshot or reproducible test case.\",\n  \"fixExpectation\": \"PATCH\",\n  \"requiredSkills\": [\n    \"TypeScript\",\n    \"React\"\n  ],\n  \"eligibilityNotes\": \"Applicants should have frontend debugging experience.\",\n  \"requiresNda\": false,\n  \"fee\": 250.0,\n  \"currency\": \"USD\",\n  \"splitFeeAllowed\": false,\n  \"duplicateReportRule\": \"First accepted unique report only.\",\n  \"maxAcceptedReports\": 1,\n  \"closesAfterOneResolution\": true,\n  \"deadline\": \"2030-12-31T23:59:59Z\",\n  \"safeHarborStatement\": \"Testing is limited to the authorized staging environment.\",\n  \"taskId\": \"{{taskId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Bug Fix Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/phases/{{phaseId}}/bug-fix-jobs",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/phases/{phaseId}/bug-fix-jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Bug Fix Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/companies/{{companyId}}/bug-fix-jobs",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}/bug-fix-jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/me",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-fix-jobs/me."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Jobid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-fix-jobs/{jobId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Jobid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}",
+              "query": []
+            },
+            "description": "Request body DTO: BugFixJobUpdateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated sample UI issue\",\n  \"summary\": \"Updated job summary.\",\n  \"productType\": \"Web application\",\n  \"techStack\": \"Next.js, TypeScript\",\n  \"versionBuild\": \"1.0.1\",\n  \"environments\": \"Staging browser environment\",\n  \"scope\": \"Investigate the reported UI behavior and provide a fix.\",\n  \"outOfScope\": \"Production data changes.\",\n  \"authorizedTestingRules\": \"Use only the assigned staging environment.\",\n  \"accessMethod\": \"Use the provided test account.\",\n  \"category\": \"FUNCTIONAL\",\n  \"severityCriteria\": \"User-facing workflow is blocked.\",\n  \"reproductionRequirements\": \"Include repeatable steps and observed result.\",\n  \"evidenceRequirements\": \"Attach a screenshot or reproducible test case.\",\n  \"fixExpectation\": \"PATCH\",\n  \"requiredSkills\": [\n    \"TypeScript\",\n    \"React\"\n  ],\n  \"eligibilityNotes\": \"Applicants should have frontend debugging experience.\",\n  \"requiresNda\": false,\n  \"fee\": 250.0,\n  \"currency\": \"USD\",\n  \"splitFeeAllowed\": false,\n  \"duplicateReportRule\": \"First accepted unique report only.\",\n  \"maxAcceptedReports\": 1,\n  \"closesAfterOneResolution\": true,\n  \"deadline\": \"2030-12-31T23:59:59Z\",\n  \"safeHarborStatement\": \"Testing is limited to the authorized staging environment.\",\n  \"taskId\": \"{{taskId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Publish",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/publish",
+              "query": []
+            },
+            "description": "Request body DTO: JobActionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nOptional body\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Example action reason; replace before sending.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Select Freelancer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/select-freelancer",
+              "query": []
+            },
+            "description": "Request body DTO: SelectFreelancerRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"applicationId\": \"{{applicationId}}\",\n  \"reason\": \"Selected based on relevant experience.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Submissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/submissions",
+              "query": []
+            },
+            "description": "Request body DTO: JobSubmissionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportSummary\": \"The issue was reproduced and a fix is ready for review.\",\n  \"reproductionDetails\": \"Open the affected page and follow the reported steps.\",\n  \"fixDetails\": \"Updated the UI state handling to prevent the issue.\",\n  \"evidenceKeys\": [\n    \"{{storageKey}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/submissions",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-fix-jobs/{jobId}/submissions."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Reviews",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/reviews",
+              "query": []
+            },
+            "description": "Request body DTO: JobReviewRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"TEST_PASSED\",\n  \"reason\": \"Verified the fix in the staging environment.\",\n  \"testingEvidenceKeys\": [\n    \"{{storageKey}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/reviews",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-fix-jobs/{jobId}/reviews."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Approve Fee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/approve-fee",
+              "query": []
+            },
+            "description": "Request body DTO: ApproveFeeRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 250.0,\n  \"currency\": \"USD\",\n  \"note\": \"Approved example fee.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/payment",
+              "query": []
+            },
+            "description": "Request body DTO: RecordPaymentRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stage\": \"PAYMENT_VERIFIED\",\n  \"paymentId\": \"{{paymentId}}\",\n  \"paymentReference\": \"EXAMPLE-PAYMENT-REF\",\n  \"amount\": 250.0,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Confirm Receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/confirm-receipt",
+              "query": []
+            },
+            "description": "Request body DTO: ConfirmReceiptRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nOptional body\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Receipt confirmed for the example payment.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Close",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/close",
+              "query": []
+            },
+            "description": "Request body DTO: JobActionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nOptional body\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Example action reason; replace before sending.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/cancel",
+              "query": []
+            },
+            "description": "Request body DTO: JobActionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nOptional body\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Example action reason; replace before sending.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Dispute",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/dispute",
+              "query": []
+            },
+            "description": "Request body DTO: JobActionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nOptional body\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Example action reason; replace before sending.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Applications",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/applications",
+              "query": []
+            },
+            "description": "Request body DTO: JobApplicationRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposal\": \"I can investigate and deliver the requested fix.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Applications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/applications",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-fix-jobs/{jobId}/applications."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/bug-fix-jobs/{{jobId}}/applications/withdraw",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/bug-fix-jobs/{jobId}/applications/withdraw."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Phases",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/public/phases?page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Public discovery route; backend requires bearer JWT"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Bug Fix Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/public/bug-fix-jobs?page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Public discovery route; backend requires bearer JWT"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Work",
+      "item": [
+        {
+          "name": "POST Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/phases/{{phaseId}}/tasks",
+              "query": []
+            },
+            "description": "Request body DTO: TaskRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement sample task\",\n  \"description\": \"Task description for API testing.\",\n  \"dueDate\": \"2030-12-31\",\n  \"completionRule\": \"ALL_ASSIGNEES\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/phases/{{phaseId}}/tasks",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/phases/{phaseId}/tasks."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/me",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/me."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Taskid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/{taskId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/history",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/{taskId}/history."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/summary",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/{taskId}/summary."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Taskid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}",
+              "query": []
+            },
+            "description": "Request body DTO: TaskUpdateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated sample task\",\n  \"description\": \"Updated task description.\",\n  \"dueDate\": \"2030-12-31\",\n  \"completionRule\": \"ALL_ASSIGNEES\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/status",
+              "query": []
+            },
+            "description": "Request body DTO: TaskStatusChangeRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PROGRESS\",\n  \"reason\": \"Work has started.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Assignees",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/assignees",
+              "query": []
+            },
+            "description": "Request body DTO: AssigneeRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Assignees",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/assignees",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/{taskId}/assignees."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Userid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/assignees/{{userId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/tasks/{taskId}/assignees/{userId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Attachments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/attachments",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/{taskId}/attachments."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Attachments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/attachments",
+              "query": []
+            },
+            "description": "Request body DTO: TaskAttachmentRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileKey\": \"{{storageKey}}\",\n  \"fileName\": \"example-evidence.png\",\n  \"mimeType\": \"image/png\",\n  \"description\": \"Example task attachment.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Attachmentid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/attachments/{{attachmentId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/tasks/{taskId}/attachments/{attachmentId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Submissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/submissions",
+              "query": []
+            },
+            "description": "Request body DTO: SubmissionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Implementation is ready for review.\",\n  \"attachmentKeys\": [\n    \"{{storageKey}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/tasks/{{taskId}}/submissions",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/tasks/{taskId}/submissions."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bug",
+      "item": [
+        {
+          "name": "POST Bug Reports",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/phases/{{phaseId}}/bug-reports",
+              "query": []
+            },
+            "description": "Request body DTO: BugReportRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sample report: button does not respond\",\n  \"description\": \"Clicking the save button does not submit the form.\",\n  \"problem\": \"The form remains unchanged after the click.\",\n  \"location\": \"Settings page, profile form\",\n  \"category\": \"FUNCTIONAL\",\n  \"severity\": \"MEDIUM\",\n  \"taskId\": \"{{taskId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Bug Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/phases/{{phaseId}}/bug-reports",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/phases/{phaseId}/bug-reports."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/bug-reports/me",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-reports/me."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Reportid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/bug-reports/{{reportId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-reports/{reportId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/bug-reports/{{reportId}}/status",
+              "query": []
+            },
+            "description": "Request body DTO: StatusChangeRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PROGRESS\",\n  \"reason\": \"Triage started.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Evidence",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/bug-reports/{{reportId}}/evidence",
+              "query": []
+            },
+            "description": "Request body DTO: EvidenceRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileKey\": \"{{storageKey}}\",\n  \"mimeType\": \"image/png\",\n  \"description\": \"Screenshot showing the reported issue.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Evidence",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/bug-reports/{{reportId}}/evidence",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/bug-reports/{reportId}/evidence."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Evidenceid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/bug-reports/{{reportId}}/evidence/{{evidenceId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/bug-reports/{reportId}/evidence/{evidenceId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Recruitment",
+      "item": [
+        {
+          "name": "POST Recruitment Posts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts",
+              "query": []
+            },
+            "description": "Request body DTO: RecruitmentPostRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Example frontend contract tester\",\n  \"description\": \"Help validate a sample frontend workflow.\",\n  \"fee\": 250.0,\n  \"currency\": \"USD\",\n  \"imageUrl\": \"https://example.com/job-image.png\",\n  \"intendedRole\": \"TESTER\",\n  \"departmentId\": \"{{departmentId}}\",\n  \"projectId\": \"{{projectId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Publish",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}/publish",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/recruitment-posts/{postId}/publish."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Postid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/recruitment-posts/{postId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Postid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}",
+              "query": []
+            },
+            "description": "Request body DTO: RecruitmentPostUpdateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated frontend contract tester\",\n  \"description\": \"Updated role description.\",\n  \"fee\": 250.0,\n  \"currency\": \"USD\",\n  \"imageUrl\": \"https://example.com/job-image.png\",\n  \"intendedRole\": \"TESTER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Close",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}/close",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/recruitment-posts/{postId}/close."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Postid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/recruitment-posts/{postId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Recruitment Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/companies/{{companyId}}/recruitment-posts",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/companies/{companyId}/recruitment-posts."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Recruitment Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/public/recruitment-posts",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/public/recruitment-posts."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Applications",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}/applications",
+              "query": []
+            },
+            "description": "Request body DTO: ApplicationRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coverNote\": \"I am interested in this opportunity.\",\n  \"structuredData\": [\n    \"Relevant testing experience\",\n    \"Available for the listed timeframe\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Applications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/recruitment-posts/{{postId}}/applications",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/recruitment-posts/{postId}/applications."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/applications/me",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/applications/me."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Applicationid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/applications/{{applicationId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/applications/{applicationId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/applications/{{applicationId}}/status",
+              "query": []
+            },
+            "description": "Request body DTO: StatusChangeRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"MANAGER_REVIEW\",\n  \"reason\": \"Moved to manager review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Files",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/applications/{{applicationId}}/files",
+              "query": []
+            },
+            "description": "Request body DTO: ApplicationFileRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileKey\": \"{{storageKey}}\",\n  \"mimeType\": \"application/pdf\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/applications/{{applicationId}}/files",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/applications/{applicationId}/files."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notification",
+      "item": [
+        {
+          "name": "POST Test Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications/test-email",
+              "query": []
+            },
+            "description": "Request body DTO: TestEmailRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nOptional body\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Workora test email\",\n  \"body\": \"This is an example test email request.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Notifications",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications",
+              "query": []
+            },
+            "description": "Request body DTO: NotificationCreateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"type\": \"SYSTEM\",\n  \"title\": \"Example notification\",\n  \"body\": \"This is an example notification body.\",\n  \"relatedEntityType\": \"TASK\",\n  \"relatedEntityId\": \"{{taskId}}\",\n  \"recipientEmail\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications?unreadOnly={{unreadOnly}}&page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "unreadOnly",
+                  "value": "{{unreadOnly}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paged inbox"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications/unread-count",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/notifications/unread-count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Notificationid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications/{{notificationId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/notifications/{notificationId}."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications/{{notificationId}}/read",
+              "query": []
+            },
+            "description": "Implemented backend route: PATCH /api/v1/notifications/{notificationId}/read."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Archive",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications/{{notificationId}}/archive",
+              "query": []
+            },
+            "description": "Implemented backend route: PATCH /api/v1/notifications/{notificationId}/archive."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Notificationid",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notifications/{{notificationId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/notifications/{notificationId}."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Notification Preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notification-preferences",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/notification-preferences."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Notification Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/notification-preferences",
+              "query": []
+            },
+            "description": "Request body DTO: PreferenceUpsertRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"IN_APP\",\n  \"type\": \"TASK_ASSIGNED\",\n  \"enabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "POST Payments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentCreateRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 250.0,\n  \"currency\": \"USD\",\n  \"purpose\": \"Example service payment\",\n  \"idempotencyKey\": \"example-payment-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments?page={{page}}&size={{pageSize}}",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "{{pageSize}}",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Optional query parameter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paged transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Paymentid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments/{{paymentId}}",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/payments/{paymentId}."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments/{{paymentId}}/verify",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentVerifyRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerReference\": \"{{providerReference}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Refresh Status",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments/{{paymentId}}/refresh-status",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/payments/{paymentId}/refresh-status."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Confirm Receipt",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments/{{paymentId}}/confirm-receipt",
+              "query": []
+            },
+            "description": "Implemented backend route: POST /api/v1/payments/{paymentId}/confirm-receipt."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Dispute",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments/{{paymentId}}/dispute",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentActionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Example payment dispute reason; replace before sending.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Bakong",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Bakong-Callback-Secret",
+                "value": "{{callbackSecret}}",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/payments/callbacks/bakong",
+              "query": []
+            },
+            "description": "JSON callback; optional X-Bakong-Callback-Secret header\n\nCallback payload alternatives: reference/merchantReference/orderId, transactionId/transactionReference/providerReference/id, and status/transactionStatus/state. Use a provider-generated reference and configured callback secret when required.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"REPLACE_WITH_PAYMENT_REFERENCE\",\n  \"transactionId\": \"{{providerReference}}\",\n  \"status\": \"SUCCESS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Bakong",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/users/me/payment-profiles/bakong",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/users/me/payment-profiles/bakong."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Bakong",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/users/me/payment-profiles/bakong",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentProfileRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"walletName\": \"Example wallet\",\n  \"phoneNumber\": \"+1-555-0100\",\n  \"isPrimary\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Bakong",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/users/me/payment-profiles/bakong",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentProfileRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"walletName\": \"Example wallet\",\n  \"phoneNumber\": \"+1-555-0100\",\n  \"isPrimary\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Bakong",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/users/me/payment-profiles/bakong",
+              "query": []
+            },
+            "description": "Implemented backend route: DELETE /api/v1/users/me/payment-profiles/bakong."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Qr Upload",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/users/me/payment-profiles/bakong/qr-upload?qrPayload={{qrPayload}}",
+              "query": [
+                {
+                  "key": "qrPayload",
+                  "value": "{{qrPayload}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Required qrPayload query parameter"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Paymentid",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/fee-payments/{{paymentId}}",
+              "query": []
+            },
+            "description": "Legacy compatibility alias"
+          },
+          "response": []
+        },
+        {
+          "name": "GET Qr",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/fee-payments/{{paymentId}}/qr",
+              "query": []
+            },
+            "description": "Legacy compatibility alias"
+          },
+          "response": []
+        },
+        {
+          "name": "POST Verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/fee-payments/{{paymentId}}/verify",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentVerifyRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nLegacy compatibility alias\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerReference\": \"{{providerReference}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Confirm Receipt",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/fee-payments/{{paymentId}}/confirm-receipt",
+              "query": []
+            },
+            "description": "Legacy compatibility alias"
+          },
+          "response": []
+        },
+        {
+          "name": "POST Dispute",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/fee-payments/{{paymentId}}/dispute",
+              "query": []
+            },
+            "description": "Request body DTO: PaymentActionRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nLegacy compatibility alias\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Example payment dispute reason; replace before sending.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Metrics",
+      "item": [
+        {
+          "name": "GET System Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/dashboard/api/v1/dashboard/admin/summary",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Aggregate-only system overview."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Identity Account Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate identity-profile count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Organization Company Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate company count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Project Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate project count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Task Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate task count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Bug Report Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate bug-report count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Recruitment Post Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate recruitment-post count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Notification Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/notification/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate notification count."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Payment Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/payment/api/v1/admin/metrics",
+              "query": []
+            },
+            "description": "ADMIN realm role required. Returns aggregate payment count."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Management",
+      "item": [
+        {
+          "name": "GET System Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/dashboard/api/v1/dashboard/admin/health",
+              "query": []
+            },
+            "description": "Requires the Keycloak realm ADMIN role. Probes service readiness endpoints."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Pending Admin Account Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/admin/accounts/requests?status=PENDING",
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            },
+            "description": "Requires the Keycloak realm ADMIN role."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Create Admin Account Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/admin/accounts/requests",
+              "query": []
+            },
+            "description": "Creates an invited regular USER account and pending approval. ADMIN privileges are not applied until a different admin approves.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin-candidate@example.com\",\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Approve Admin Account Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/admin/accounts/requests/{{requestId}}/approve",
+              "query": []
+            },
+            "description": "Requires a different existing admin than the requested account."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Reject Admin Account Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/admin/accounts/requests/{{requestId}}/reject",
+              "query": []
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/admin/companies?page=0&size=20",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Requires the Keycloak realm ADMIN role."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Company Access Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/admin/companies/{{companyId}}/status",
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUSPENDED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/admin/subscriptions?page=0&size=20",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update Owner Subscription",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/admin/subscriptions/{{userId}}",
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"PRO\",\n  \"maxCompanies\": 5,\n  \"entitled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Organization Membership Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/admin/activity?page=0&size=20&sort=createdAt,desc&companyId={{companyId}}&userId={{userId}}&action=ROLE_CHANGED&from=2026-01-01T00:00:00Z&to=2026-12-31T00:00:00Z",
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "userId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "action",
+                  "value": "ROLE_CHANGED",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "2026-01-01T00:00:00Z",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31T00:00:00Z",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Filters are optional; activity coverage is organization membership audits only."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "GET Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/dashboard/api/v1/dashboard/summary",
+              "query": []
+            },
+            "description": "Implemented backend route: GET /api/v1/dashboard/summary."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/dashboard/api/health",
+              "query": []
+            },
+            "description": "Public service health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "Gateway health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/health",
+              "query": []
+            },
+            "description": "Gateway health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shared Storage - Identity",
+      "item": [
+        {
+          "name": "POST Uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/storage/uploads",
+              "query": []
+            },
+            "description": "Request body DTO: UploadRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nShared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the identity gateway prefix.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"namespace\": \"workora-example\",\n  \"fileName\": \"example-evidence.png\",\n  \"contentType\": \"image/png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Downloads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/storage/downloads?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the identity gateway prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Storage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/identity/api/v1/storage?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the identity gateway prefix."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shared Storage - Organization",
+      "item": [
+        {
+          "name": "POST Uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/storage/uploads",
+              "query": []
+            },
+            "description": "Request body DTO: UploadRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nShared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the organization gateway prefix.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"namespace\": \"workora-example\",\n  \"fileName\": \"example-evidence.png\",\n  \"contentType\": \"image/png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Downloads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/storage/downloads?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the organization gateway prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Storage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/organization/api/v1/storage?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the organization gateway prefix."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shared Storage - Project",
+      "item": [
+        {
+          "name": "POST Uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/storage/uploads",
+              "query": []
+            },
+            "description": "Request body DTO: UploadRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nShared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the project gateway prefix.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"namespace\": \"workora-example\",\n  \"fileName\": \"example-evidence.png\",\n  \"contentType\": \"image/png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Downloads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/storage/downloads?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the project gateway prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Storage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/project/api/v1/storage?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the project gateway prefix."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shared Storage - Work",
+      "item": [
+        {
+          "name": "POST Uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/storage/uploads",
+              "query": []
+            },
+            "description": "Request body DTO: UploadRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nShared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the work gateway prefix.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"namespace\": \"workora-example\",\n  \"fileName\": \"example-evidence.png\",\n  \"contentType\": \"image/png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Downloads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/storage/downloads?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the work gateway prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Storage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/work/api/v1/storage?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the work gateway prefix."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shared Storage - Bug",
+      "item": [
+        {
+          "name": "POST Uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/storage/uploads",
+              "query": []
+            },
+            "description": "Request body DTO: UploadRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nShared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the bug gateway prefix.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"namespace\": \"workora-example\",\n  \"fileName\": \"example-evidence.png\",\n  \"contentType\": \"image/png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Downloads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/storage/downloads?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the bug gateway prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Storage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/bug/api/v1/storage?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the bug gateway prefix."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shared Storage - Recruitment",
+      "item": [
+        {
+          "name": "POST Uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/storage/uploads",
+              "query": []
+            },
+            "description": "Request body DTO: UploadRequest. Example JSON body is based on this backend request DTO; adjust example values and include only fields accepted by this endpoint.\n\nShared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the recruitment gateway prefix.\n\nExample field values are placeholders for local/testing use. Replace values, IDs, enum strings, and object keys with valid data from your environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"namespace\": \"workora-example\",\n  \"fileName\": \"example-evidence.png\",\n  \"contentType\": \"image/png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Downloads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/storage/downloads?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the recruitment gateway prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Storage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/recruitment/api/v1/storage?key={{key}}",
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{key}}",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Shared controller also imported by identity, project, work, bug, and recruitment services\n\nEquivalent routes are mounted in identity, project, work, bug, and recruitment. This request uses the recruitment gateway prefix."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

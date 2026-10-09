@@ -1,0 +1,43 @@
+{
+  "realm": "workora",
+  "enabled": true,
+  "attributes": {
+    "frontendUrl": "http://localhost:8180"
+  },
+  "registrationAllowed": true,
+  "verifyEmail": true,
+  "resetPasswordAllowed": true,
+  "loginTheme": "workora",
+  "emailTheme": "workora",
+  "roles": {
+    "realm": [
+      {
+        "name": "USER",
+        "description": "Standard Workora user"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Workora administrator"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "workora-api",
+      "name": "Workora API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080",
+        "http://localhost:3000"
+      ]
+    }
+  ]
+}

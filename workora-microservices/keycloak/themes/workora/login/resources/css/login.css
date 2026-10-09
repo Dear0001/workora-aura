@@ -1,0 +1,113 @@
+body.workora-action-token-page {
+  background: #f8fafc;
+}
+
+body.workora-action-token-page > * {
+  display: none !important;
+}
+
+.workora-verification-card {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #0f172a;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.workora-verification-card__panel {
+  width: min(100%, 420px);
+  padding: 40px 32px;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.08);
+  animation: workora-verification-fade-up 240ms ease-out;
+}
+
+.workora-verification-card__logo {
+  margin-bottom: 28px;
+  color: #4f46e5;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.workora-verification-card__icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: #16a34a;
+  border-radius: 50%;
+  font-size: 38px;
+  animation: workora-verification-pop 420ms ease-out;
+}
+
+.workora-verification-card h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.workora-verification-card p {
+  margin: 12px 0 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.workora-verification-card__progress {
+  height: 4px;
+  margin-top: 28px;
+  overflow: hidden;
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+.workora-verification-card__progress::after {
+  display: block;
+  width: 100%;
+  height: 100%;
+  content: "";
+  background: #4f46e5;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: workora-verification-progress 3s linear forwards;
+}
+
+@keyframes workora-verification-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes workora-verification-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes workora-verification-progress {
+  to {
+    transform: scaleX(1);
+  }
+}

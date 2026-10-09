@@ -1,0 +1,240 @@
+﻿server:
+  port: ${GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/workora}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/workora/protocol/openid-connect/certs}
+  cloud:
+    gateway:
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REQUESTS:120}
+            redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_REQUESTS:120}
+            redis-rate-limiter.requestedTokens: ${GATEWAY_RATE_LIMIT_REQUESTED_TOKENS:1}
+            key-resolver: "#{@remoteAddressKeyResolver}"
+      routes:
+        - id: identity-swagger-ui
+          uri: ${IDENTITY_SERVICE_URL:}
+          predicates:
+            - Path=/identify/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: identity-service
+          uri: ${IDENTITY_SERVICE_URL:}
+          predicates:
+            - Path=/identify/**
+          filters:
+            - RewritePath=/identify/(?<segment>.*), /${segment}
+        - id: identity
+          uri: ${IDENTITY_SERVICE_URL:}
+          predicates:
+            - Path=/api/identity/**
+          filters:
+            - StripPrefix=2
+        - id: organization-service
+          uri: ${ORGANIZATION_SERVICE_URL:}
+          predicates:
+            - Path=/organization/**
+          filters:
+            - RewritePath=/organization/(?<segment>.*), /${segment}
+        - id: organization-swagger-ui
+          uri: ${ORGANIZATION_SERVICE_URL:}
+          predicates:
+            - Path=/organization/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+
+        - id: organization
+          uri: ${ORGANIZATION_SERVICE_URL:}
+          predicates:
+            - Path=/api/organization/**
+          filters:
+            - StripPrefix=2
+        - id: project-service
+          uri: ${PROJECT_SERVICE_URL:}
+          predicates:
+            - Path=/project/**
+          filters:
+            - RewritePath=/project/(?<segment>.*), /${segment}
+        - id: project-swagger-ui
+          uri: ${PROJECT_SERVICE_URL:}
+          predicates:
+            - Path=/project/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: project
+          uri: ${PROJECT_SERVICE_URL:}
+          predicates:
+            - Path=/api/project/**
+          filters:
+            - StripPrefix=2
+        - id: work-service
+          uri: ${WORK_SERVICE_URL:}
+          predicates:
+            - Path=/work/**
+          filters:
+            - RewritePath=/work/(?<segment>.*), /${segment}
+        - id: work-swagger-ui
+          uri: ${WORK_SERVICE_URL:}
+          predicates:
+            - Path=/work/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: work
+          uri: ${WORK_SERVICE_URL:}
+          predicates:
+            - Path=/api/work/**
+          filters:
+            - StripPrefix=2
+        - id: bug-service
+          uri: ${BUG_SERVICE_URL:}
+          predicates:
+            - Path=/bug/**
+          filters:
+            - RewritePath=/bug/(?<segment>.*), /${segment}
+        - id: bug-swagger-ui
+          uri: ${BUG_SERVICE_URL:}
+          predicates:
+            - Path=/bug/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: bug
+          uri: ${BUG_SERVICE_URL:}
+          predicates:
+            - Path=/api/bug/**
+          filters:
+            - StripPrefix=2
+        - id: recruitment-service
+          uri: ${RECRUITMENT_SERVICE_URL:}
+          predicates:
+            - Path=/recruitment/**
+          filters:
+            - RewritePath=/recruitment/(?<segment>.*), /${segment}
+        - id: recruitment-swagger-ui
+          uri: ${RECRUITMENT_SERVICE_URL:}
+          predicates:
+            - Path=/recruitment/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: recruitment
+          uri: ${RECRUITMENT_SERVICE_URL:}
+          predicates:
+            - Path=/api/recruitment/**
+          filters:
+            - StripPrefix=2
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:}
+          predicates:
+            - Path=/notification/**
+          filters:
+            - RewritePath=/notification/(?<segment>.*), /${segment}
+        - id: notification-swagger-ui
+          uri: ${NOTIFICATION_SERVICE_URL:}
+          predicates:
+            - Path=/notification/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: notification
+          uri: ${NOTIFICATION_SERVICE_URL:}
+          predicates:
+            - Path=/api/notification/**
+          filters:
+            - StripPrefix=2
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL:}
+          predicates:
+            - Path=/payment/**
+          filters:
+            - RewritePath=/payment/(?<segment>.*), /${segment}
+        - id: payment-swagger-ui
+          uri: ${PAYMENT_SERVICE_URL:}
+          predicates:
+            - Path=/payment/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: payment
+          uri: ${PAYMENT_SERVICE_URL:}
+          predicates:
+            - Path=/api/payment/**
+          filters:
+            - StripPrefix=2
+        - id: dashboard-swagger-ui
+          uri: ${DASHBOARD_SERVICE_URL:}
+          predicates:
+            - Path=/dashboard/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: dashboard-service
+          uri: ${DASHBOARD_SERVICE_URL:}
+          predicates:
+            - Path=/dashboard/**
+          filters:
+            - RewritePath=/dashboard/(?<segment>.*), /${segment}
+        - id: dashboard
+          uri: ${DASHBOARD_SERVICE_URL:}
+          predicates:
+            - Path=/api/dashboard/**
+          filters:
+            - StripPrefix=2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  health:
+    redis:
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+springdoc:
+  swagger-ui:
+    path: /gateway/swagger-ui.html
+    disable-swagger-default-url: true
+    urls:
+      - name: API Gateway
+        url: /gateway/v3/api-docs
+      - name: Identity
+        url: /identify/v3/api-docs
+      - name: Organization
+        url: /organization/v3/api-docs
+      - name: Project
+        url: /project/v3/api-docs
+      - name: Work
+        url: /work/v3/api-docs
+      - name: Bug
+        url: /bug/v3/api-docs
+      - name: Recruitment
+        url: /recruitment/v3/api-docs
+      - name: Notification
+        url: /notification/v3/api-docs
+      - name: Payment
+        url: /payment/v3/api-docs
+      - name: Dashboard
+        url: /dashboard/v3/api-docs
+  api-docs:
+    path: /gateway/v3/api-docs
+
+gateway:
+  cors:
+    allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4028}
+  rate-limit:
+    requests-per-window: ${GATEWAY_RATE_LIMIT_REQUESTS:120}
+    window-seconds: ${GATEWAY_RATE_LIMIT_WINDOW_SECONDS:60}

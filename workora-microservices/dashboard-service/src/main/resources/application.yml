@@ -1,0 +1,30 @@
+server:
+  port: ${DASHBOARD_SERVICE_PORT:8109}
+
+spring:
+  application:
+    name: dashboard-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/workora}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/workora/protocol/openid-connect/certs}
+
+workora:
+  dashboard:
+    services:
+      organization-url: ${ORGANIZATION_SERVICE_URL:http://localhost:8102}
+      project-url: ${PROJECT_SERVICE_URL:http://localhost:8103}
+      work-url: ${WORK_SERVICE_URL:http://localhost:8104}
+      bug-url: ${BUG_SERVICE_URL:http://localhost:8105}
+      notification-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8107}
+      identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8101}
+      recruitment-url: ${RECRUITMENT_SERVICE_URL:http://localhost:8106}
+      payment-url: ${PAYMENT_SERVICE_URL:http://localhost:8108}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

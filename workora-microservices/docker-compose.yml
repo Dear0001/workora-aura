@@ -1,0 +1,557 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: workora-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: workora-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: workora-zipkin
+    ports:
+      - "9411:9411"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
+    container_name: workora-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9000/minio/health/live >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: workora-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+       mc mb --ignore-existing local/workora-files"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: workora-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      - "8180:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./keycloak/themes/workora:/opt/keycloak/themes/workora:ro
+
+  identity-db:
+    image: postgres:16-alpine
+    container_name: workora-identity-db
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  organization-db:
+    image: postgres:16-alpine
+    container_name: workora-organization-db
+    environment:
+      POSTGRES_DB: organization_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - organization-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d organization_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  project-db:
+    image: postgres:16-alpine
+    container_name: workora-project-db
+    environment:
+      POSTGRES_DB: project_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5435:5432"
+    volumes:
+      - project-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d project_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  work-db:
+    image: postgres:16-alpine
+    container_name: workora-work-db
+    environment:
+      POSTGRES_DB: task_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5436:5432"
+    volumes:
+      - work-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d task_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bug-db:
+    image: postgres:16-alpine
+    container_name: workora-bug-db
+    environment:
+      POSTGRES_DB: bug_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5437:5432"
+    volumes:
+      - bug-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d bug_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  recruitment-db:
+    image: postgres:16-alpine
+    container_name: workora-recruitment-db
+    environment:
+      POSTGRES_DB: recruitment_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5438:5432"
+    volumes:
+      - recruitment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d recruitment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notification-db:
+    image: postgres:16-alpine
+    container_name: workora-notification-db
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5439:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d notification_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  payment-db:
+    image: postgres:16-alpine
+    container_name: workora-payment-db
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5440:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workora -d payment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  identity-service:
+    build:
+      context: .
+      args:
+        SERVICE: identity-service
+    container_name: identity-service
+    restart: unless-stopped
+    environment:
+      IDENTITY_SERVICE_PORT: ${IDENTITY_SERVICE_PORT:-8101}
+      DB_URL: jdbc:postgresql://identity-db:5432/identity_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8180/realms/workora}
+      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-workora}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-workora-api}
+      KEYCLOAK_FRONTEND_URL: ${KEYCLOAK_FRONTEND_URL:-http://localhost:3000}
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8080/realms/workora/protocol/openid-connect/certs}
+      STORAGE_MINIO_ENDPOINT: http://minio:9000
+      STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
+      STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_REGION: ${STORAGE_MINIO_REGION:-us-east-1}
+      STORAGE_MINIO_BUCKET: workora-files
+    ports:
+      - "${IDENTITY_SERVICE_PORT:-8101}:${IDENTITY_SERVICE_PORT:-8101}"
+    depends_on:
+      identity-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+
+  organization-service:
+    build:
+      context: .
+      args:
+        SERVICE: organization-service
+    container_name: organization-service
+    restart: unless-stopped
+    environment:
+      ORGANIZATION_SERVICE_PORT: ${ORGANIZATION_SERVICE_PORT:-8102}
+      DB_URL: jdbc:postgresql://organization-db:5432/organization_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STORAGE_MINIO_ENDPOINT: http://minio:9000
+      STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
+      STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_REGION: ${STORAGE_MINIO_REGION:-us-east-1}
+      STORAGE_MINIO_BUCKET: workora-files
+    ports:
+      - "${ORGANIZATION_SERVICE_PORT:-8102}:${ORGANIZATION_SERVICE_PORT:-8102}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ORGANIZATION_SERVICE_PORT:-8102}/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      organization-db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  project-service:
+    build:
+      context: .
+      args:
+        SERVICE: project-service
+    container_name: project-service
+    restart: unless-stopped
+    environment:
+      PROJECT_SERVICE_PORT: ${PROJECT_SERVICE_PORT:-8103}
+      DB_URL: jdbc:postgresql://project-db:5432/project_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STORAGE_MINIO_ENDPOINT: http://minio:9000
+      STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
+      STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_BUCKET: workora-files
+    ports:
+      - "${PROJECT_SERVICE_PORT:-8103}:${PROJECT_SERVICE_PORT:-8103}"
+    depends_on:
+      project-db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  work-service:
+    build:
+      context: .
+      args:
+        SERVICE: work-service
+    container_name: work-service
+    restart: unless-stopped
+    environment:
+      WORK_SERVICE_PORT: ${WORK_SERVICE_PORT:-8104}
+      DB_URL: jdbc:postgresql://work-db:5432/task_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STORAGE_MINIO_ENDPOINT: http://minio:9000
+      STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
+      STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_BUCKET: workora-files
+    ports:
+      - "${WORK_SERVICE_PORT:-8104}:${WORK_SERVICE_PORT:-8104}"
+    depends_on:
+      work-db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  bug-service:
+    build:
+      context: .
+      args:
+        SERVICE: bug-service
+    container_name: bug-service
+    restart: unless-stopped
+    environment:
+      BUG_SERVICE_PORT: ${BUG_SERVICE_PORT:-8105}
+      DB_URL: jdbc:postgresql://bug-db:5432/bug_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STORAGE_MINIO_ENDPOINT: http://minio:9000
+      STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
+      STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_BUCKET: workora-files
+    ports:
+      - "${BUG_SERVICE_PORT:-8105}:${BUG_SERVICE_PORT:-8105}"
+    depends_on:
+      bug-db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  recruitment-service:
+    build:
+      context: .
+      args:
+        SERVICE: recruitment-service
+    container_name: recruitment-service
+    restart: unless-stopped
+    environment:
+      RECRUITMENT_SERVICE_PORT: ${RECRUITMENT_SERVICE_PORT:-8106}
+      DB_URL: jdbc:postgresql://recruitment-db:5432/recruitment_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STORAGE_MINIO_ENDPOINT: http://minio:9000
+      STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
+      STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_MINIO_BUCKET: workora-files
+    ports:
+      - "${RECRUITMENT_SERVICE_PORT:-8106}:${RECRUITMENT_SERVICE_PORT:-8106}"
+    depends_on:
+      recruitment-db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  notification-service:
+    build:
+      context: .
+      args:
+        SERVICE: notification-service
+    container_name: notification-service
+    restart: unless-stopped
+    environment:
+      NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT:-8107}
+      DB_URL: jdbc:postgresql://notification-db:5432/notification_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      NOTIFICATION_EMAIL_ENABLED: ${NOTIFICATION_EMAIL_ENABLED:-true}
+      NOTIFICATION_FROM: ${NOTIFICATION_FROM:-}
+      NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-60000}
+      NOTIFICATION_INTERNAL_SERVICE_TOKEN: ${NOTIFICATION_INTERNAL_SERVICE_TOKEN}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8107}:${NOTIFICATION_SERVICE_PORT:-8107}"
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      args:
+        SERVICE: payment-service
+    container_name: payment-service
+    restart: unless-stopped
+    environment:
+      PAYMENT_SERVICE_PORT: ${PAYMENT_SERVICE_PORT:-8108}
+      DB_URL: jdbc:postgresql://payment-db:5432/payment_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-local}
+      BAKONG_BASE_URL: ${BAKONG_BASE_URL:-}
+      BAKONG_USERNAME: ${BAKONG_USERNAME:-}
+      BAKONG_PASSWORD: ${BAKONG_PASSWORD:-}
+      BAKONG_TOKEN: ${BAKONG_TOKEN:-}
+      BAKONG_AUTHENTICATION_PATH: ${BAKONG_AUTHENTICATION_PATH:-/authentication}
+      BAKONG_CREATE_TRANSACTION_PATH: ${BAKONG_CREATE_TRANSACTION_PATH:-/create-transaction}
+      BAKONG_TRANSACTION_STATUS_PATH: ${BAKONG_TRANSACTION_STATUS_PATH:-/transaction-status}
+      BAKONG_CALLBACK_URL: ${BAKONG_CALLBACK_URL:-http://localhost:8108/api/v1/payments/callbacks/bakong}
+      BAKONG_CALLBACK_SECRET: ${BAKONG_CALLBACK_SECRET:-}
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-8108}:${PAYMENT_SERVICE_PORT:-8108}"
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  dashboard-service:
+    build:
+      context: .
+      args:
+        SERVICE: dashboard-service
+    container_name: dashboard-service
+    restart: unless-stopped
+    environment:
+      DASHBOARD_SERVICE_PORT: ${DASHBOARD_SERVICE_PORT:-8109}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8180/realms/workora}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8080/realms/workora/protocol/openid-connect/certs}
+      ORGANIZATION_SERVICE_URL: ${ORGANIZATION_SERVICE_URL:-http://organization-service:8102}
+      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8103}
+      WORK_SERVICE_URL: ${WORK_SERVICE_URL:-http://work-service:8104}
+      BUG_SERVICE_URL: ${BUG_SERVICE_URL:-http://bug-service:8105}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8107}
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity-service:8101}
+      RECRUITMENT_SERVICE_URL: ${RECRUITMENT_SERVICE_URL:-http://recruitment-service:8106}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8108}
+    ports:
+      - "${DASHBOARD_SERVICE_PORT:-8109}:${DASHBOARD_SERVICE_PORT:-8109}"
+    depends_on:
+      keycloak:
+        condition: service_started
+      identity-service:
+        condition: service_started
+      organization-service:
+        condition: service_started
+      project-service:
+        condition: service_started
+      work-service:
+        condition: service_started
+      bug-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      recruitment-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+
+  api-gateway:
+    build:
+      context: .
+      args:
+        SERVICE: api-gateway
+    container_name: api-gateway
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+      GATEWAY_PORT: ${GATEWAY_PORT:-8080}
+      GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8180/realms/workora}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8080/realms/workora/protocol/openid-connect/certs}
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity-service:8101}
+      ORGANIZATION_SERVICE_URL: ${ORGANIZATION_SERVICE_URL:-http://organization-service:8102}
+      PROJECT_SERVICE_URL: ${PROJECT_SERVICE_URL:-http://project-service:8103}
+      WORK_SERVICE_URL: ${WORK_SERVICE_URL:-http://work-service:8104}
+      BUG_SERVICE_URL: ${BUG_SERVICE_URL:-http://bug-service:8105}
+      RECRUITMENT_SERVICE_URL: ${RECRUITMENT_SERVICE_URL:-http://recruitment-service:8106}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8107}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8108}
+      DASHBOARD_SERVICE_URL: ${DASHBOARD_SERVICE_URL:-http://dashboard-service:8109}
+    ports:
+      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      identity-service:
+        condition: service_started
+      organization-service:
+        condition: service_healthy
+      project-service:
+        condition: service_started
+      work-service:
+        condition: service_started
+      bug-service:
+        condition: service_started
+      recruitment-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      dashboard-service:
+        condition: service_started
+
+networks:
+  default:
+    name: workora-microservices_default
+    external: true
+
+volumes:
+  minio-data:
+  keycloak-data:
+  identity-db-data:
+  organization-db-data:
+  project-db-data:
+  work-db-data:
+  bug-db-data:
+  recruitment-db-data:
+  notification-db-data:
+  payment-db-data:
