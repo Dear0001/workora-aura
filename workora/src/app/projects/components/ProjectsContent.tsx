@@ -6,6 +6,7 @@ import { AxiosError } from 'axios';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { projectsApi, type Project } from '@/lib/api/projects';
 import { organizationApi } from '@/lib/api/organization';
+import { formatDateOnly } from '@/lib/date';
 import Link from 'next/link';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -30,7 +31,26 @@ interface CreateProjectModalProps {
 function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [projectManagerId, setProjectManagerId] = useState('');
+  const [eligibleManagers, setEligibleManagers] = useState<{ userId: string; email: string }[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    organizationApi.listDepartmentMembers(departmentId)
+      .then(response => {
+        setEligibleManagers(response.data
+            .filter(member => member.departmentMemberships?.some(
+              assignment => assignment.departmentId === departmentId && assignment.role === 'PROJECT_MANAGER'
+            ) || (member.role === 'PROJECT_MANAGER' && member.departmentId === departmentId))
+            .map(({ userId, email }) => ({ userId, email })));
+      })
+      .catch(err => {
+        toast.error(err instanceof AxiosError
+          ? (err.response?.data?.message ?? 'Failed to load department project managers')
+          : 'Failed to load department project managers');
+      });
+  }, [departmentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +60,8 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
       const res = await projectsApi.createProject(departmentId, {
         name: name.trim(),
         description: description || undefined,
+        projectManagerId: projectManagerId || undefined,
+        dueDate: dueDate || undefined,
       });
       toast.success(`Project "${res.data.name}" created`);
       onCreated(res.data);
@@ -69,6 +91,26 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
             <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this project about?" className="input-base resize-none" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Project Deadline</label>
+            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-base" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Project Manager</label>
+            <select
+              value={projectManagerId}
+              onChange={e => setProjectManagerId(e.target.value)}
+              className="input-base"
+            >
+              <option value="">Use my account</option>
+              {eligibleManagers.map(manager => (
+                <option key={manager.userId} value={manager.userId}>{manager.email}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only active Project Managers assigned to this department can be selected.
+            </p>
           </div>
           <div className="flex items-center gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 py-2.5 rounded-lg font-medium text-sm">Cancel</button>
@@ -267,6 +309,16 @@ export default function ProjectsContent() {
                 {project.description || 'No description provided.'}
               </p>
 
+              <div className="mb-4">
+                <div className="mb-1.5 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className="font-medium text-foreground">{project.progress ?? 0}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, Math.max(0, project.progress ?? 0))}%` }} />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Users size={12} />
@@ -276,7 +328,7 @@ export default function ProjectsContent() {
                 {project.dueDate && (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Calendar size={12} />
-                    <span>{new Date(project.dueDate).toLocaleDateString()}</span>
+                    <span>{formatDateOnly(project.dueDate)}</span>
                   </div>
                 )}
                 <Link href={`/projects/${project.id}`} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline opacity-0 group-hover:opacity-100 transition-opacity">

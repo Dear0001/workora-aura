@@ -47,6 +47,9 @@ public class Task {
     private TaskStatus status = TaskStatus.DRAFT;
 
     @Enumerated(EnumType.STRING)
+    private TaskPriority priority = TaskPriority.MEDIUM;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CompletionRule completionRule = CompletionRule.ALL_ASSIGNEES;
 
@@ -83,6 +86,9 @@ public class Task {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
+        if (this.priority == null) {
+            this.priority = TaskPriority.MEDIUM;
+        }
     }
 
     @PreUpdate
@@ -140,6 +146,14 @@ public class Task {
 
     public TaskStatus getStatus() {
         return status;
+    }
+
+    public TaskPriority getPriority() {
+        return priority == null ? TaskPriority.MEDIUM : priority;
+    }
+
+    public void setPriority(TaskPriority priority) {
+        this.priority = priority;
     }
 
     public void setStatus(TaskStatus status) {

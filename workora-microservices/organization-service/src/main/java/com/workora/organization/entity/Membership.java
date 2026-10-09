@@ -46,6 +46,9 @@ public class Membership {
     @Column(name = "permission")
     private Set<CompanyPermission> permissions = EnumSet.noneOf(CompanyPermission.class);
 
+    @OneToMany(mappedBy = "membership", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<DepartmentMembership> departmentMemberships = new java.util.HashSet<>();
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -116,6 +119,18 @@ public class Membership {
 
     public UUID getDepartmentId() {
         return departmentId;
+    }
+
+    public Set<DepartmentMembership> getDepartmentMemberships() {
+        return departmentMemberships;
+    }
+
+    public void addDepartmentMembership(DepartmentMembership departmentMembership) {
+        departmentMemberships.add(departmentMembership);
+    }
+
+    public void removeDepartmentMembership(DepartmentMembership departmentMembership) {
+        departmentMemberships.remove(departmentMembership);
     }
 
     public void setDepartmentId(UUID departmentId) {

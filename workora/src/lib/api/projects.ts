@@ -6,12 +6,15 @@ const BASE = '/api/project/api/v1';
 export interface Project {
   id: string;
   companyId: string;
+  departmentId?: string;
+  projectManagerId?: string;
   name: string;
   description?: string;
   visibility?: 'INTERNAL' | 'PUBLIC' | 'PRIVATE';
   status?: 'ACTIVE' | 'ARCHIVED' | 'COMPLETED';
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   dueDate?: string;
+  progress?: number;
   createdAt?: string;
   updatedAt?: string;
   memberCount?: number;
@@ -63,6 +66,17 @@ export interface CreateProjectRequest {
   name: string;
   description?: string;
   projectManagerId?: string;
+  dueDate?: string;
+  progress?: number;
+}
+
+export interface UpdateProjectRequest {
+  name?: string;
+  description?: string;
+  projectManagerId?: string;
+  dueDate?: string;
+  clearDueDate?: boolean;
+  progress?: number;
 }
 
 export interface CreatePhaseRequest {
@@ -103,7 +117,7 @@ export const projectsApi = {
     return res.data;
   },
 
-  updateProject: async (projectId: string, data: Partial<CreateProjectRequest>): Promise<ApiResponse<Project>> => {
+  updateProject: async (projectId: string, data: UpdateProjectRequest): Promise<ApiResponse<Project>> => {
     const res = await apiClient.patch<ApiResponse<Project>>(`${BASE}/projects/${projectId}`, data);
     return res.data;
   },

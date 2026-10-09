@@ -1,14 +1,38 @@
 # Workora Feature Tracking
 
 **Project:** Workora Microservices  
-**Last reviewed:** 2026-09-21  
-**Verification:** Full Maven test suite passed with `BUILD SUCCESS`
+**Last reviewed:** 2026-10-10
+**Verification:** Frontend type-check passed. Focused Java 17 tests passed for Organization, Project, Work, Bug, and Recruitment. The full backend suite was not run.
 
 ## Status legend
 
 - **Completed** — implemented in source code, wired into the application, and covered by at least baseline tests.
 - **Partial** — a working foundation exists, but production integration, workflow coverage, or hardening is still missing.
 - **Not started** — only a placeholder, route, data model, or documentation exists.
+
+## Company-to-task workflow review (2026-10-09)
+
+The existing services provide a working foundation, and this implementation
+batch aligns authorization and task contracts rather than replacing those
+services:
+
+| Requirement | Current status | Evidence / limitation |
+|---|---|---|
+| Company and department ownership | Partial | Organization owns both; company memberships remain company-scoped, with a legacy single department reference retained for compatibility. |
+| Department member assignment | Implemented; focused tests added | Active same-company members can be assigned to multiple departments and removed independently; role is stored per department, separate from the company role. Existing data is read through a legacy fallback. |
+| Project Manager eligibility | Implemented and focused tests passed | Project creation/manager changes validate an active same-company `PROJECT_MANAGER` in the target department. Non-admin project listing and reads are department scoped. |
+| Task assignee eligibility | Implemented and focused tests passed | Assignment validates an active same-company Developer or Tester in the task department; task management requires the current project manager or company owner/admin. |
+| Task workflow and priority | Implemented and focused tests passed | Added explicit transition rules, tester accept/change requests with required feedback, cancellation, and persisted `LOW`/`MEDIUM`/`HIGH`/`CRITICAL` priority. |
+| Project progress and deadline | Implemented and focused tests passed | Projects persist an optional LocalDate deadline and a validated 0-100 progress value; owners/admins and the project manager can edit these fields. |
+| Company-wide task view | Implemented and focused tests passed | `GET /api/v1/companies/{companyId}/tasks` returns active-member-visible tasks; the UI can browse tasks across all active companies and filter by company/phase. |
+| Frontend contract and controls | Type-check passed | Task status/priority, history, assignment, project schedule/progress, and department/project endpoints are aligned; UI supports manager selection, department-specific role management, task assignment/removal and project progress/deadlines. |
+| Activity history | Partial | Task status history, membership audit, and selected project events are separate service-local streams; no unified filterable cross-service audit view exists. |
+| Suspension enforcement | Partial | Organization blocks suspended company access; Project and Work defer membership checks to Organization. Bug and Recruitment private-resource mutations/readers require active membership, but every company-owned endpoint and public-read policy still needs a complete audit. |
+| Frontend CI lockfile | Prepared; commit required | The lockfile is no longer ignored and is present in the worktree. It must be included in the commit so GitHub checkout can resolve setup-node caching and `npm ci`. |
+
+The focused Java 17 suite passed 39 tests: 13 Organization, 9 Project, 12
+Work, 2 Bug, and 3 Recruitment. The npm lockfile dry-run and frontend
+type-check, workflow YAML parse, and `git diff --check` also passed.
 
 ## Executive summary
 
@@ -17,11 +41,11 @@
 | Maven multi-module structure | Completed | 9 deployable services plus the shared library build successfully. |
 | API Gateway | Completed | Routing, JWT validation, CORS, correlation IDs, rate limiting, and OpenAPI aggregation are present. |
 | Identity and authentication | Partial | Keycloak-backed auth and profile basics work; administration and advanced account governance remain. |
-| Organization | Completed | Companies, departments, memberships, and invitations are implemented. |
-| Projects and phases | Completed | Projects, phases, visibility, memberships, and Bug-Fix Jobs are implemented. |
-| Tasks and submissions | Completed | Tasks, assignments, status history, and submissions are implemented. |
-| Bug management | Completed | Reports, evidence metadata, status changes, and authorization are implemented. |
-| Recruitment | Completed | Posts, applications, status history, and file metadata are implemented. |
+| Organization | Partial | Companies, departments, memberships, and invitations exist; multiple department memberships and department-specific roles have been added compatibly, with schema migration/backfill planning still outstanding. |
+| Projects and phases | Partial | Projects, phases, visibility, memberships, progress/deadlines, and Bug-Fix Jobs exist; versioned migration and deeper progress/activity integration remain. |
+| Tasks and submissions | Partial | Tasks, company/phase views, assignments, status history, and submissions exist; company-wide pagination and complete audit coverage remain. |
+| Bug management | Partial | Reports and evidence are implemented; active company membership now gates private report/evidence access, pending complete endpoint coverage verification. |
+| Recruitment | Partial | Posts, applications, status history, and file metadata exist; author/manager mutations now require active membership, pending full endpoint coverage verification. |
 | Notifications | Partial | Inbox and preferences work; email delivery and event-driven delivery are foundational. |
 | Payments | Partial | Payment lifecycle and local QR simulation work; real Bakong integration is still required. |
 | File storage | Partial | Local MinIO storage, private bucket initialization, and presigned upload/download endpoints are implemented; production virus scanning, retention, and lifecycle policies remain. |

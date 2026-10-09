@@ -25,7 +25,7 @@ export default function EditDepartmentModal({ department, onClose, onUpdated }: 
 
   const onSubmit = async (data: FormData) => {
     try {
-      const res = await organizationApi.updateDepartment(department.id, {
+      const res = await organizationApi.updateDepartment(department.companyId, department.id, {
         name: data.name,
         description: data.description || undefined,
       });

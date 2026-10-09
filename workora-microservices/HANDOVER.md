@@ -47,12 +47,49 @@ The importable Postman Collection remains at `postman/Workora.postman_collection
 ## Platform Admin role boundary and GitHub Actions
 
 - Platform Admin is the global Identity `ADMIN` role and is independent of company membership. `CompanyRole` remains limited to company-scoped roles; it does not contain or grant the platform role.
-- The shared repository CI workflow is at `../.github/workflows/ci.yml`. Its backend job uses Java 17 and runs focused admin authorization, dashboard-health, and membership tests from this repository.
+- The shared repository CI workflow is at `../.github/workflows/ci.yml`. Its backend job uses Java 17 and runs focused admin authorization, membership, project authorization, and task workflow tests from this repository.
 - Keep platform role approval and signed-token authorization separate from organization membership permissions.
 - Validation: all 22 selected backend tests passed using Java 17; workflow YAML parsed successfully and `git diff --check` passed.
+
+## Company, department, project, task and activity tracking review
+
+### Remaining full-spec implementation continuation (2026-10-10)
+
+- User requested autonomous continuation through the remaining company-to-task workflow gaps.
+- Planned implementation focus: backward-compatible department membership and department roles, cross-service activity capture/query, company suspension enforcement, persisted project schedule/progress, and company-wide task views.
+- Do not bypass service ownership or assume events are a durable audit store without verifying broker and consumer configuration. Preserve existing API behavior where possible.
+- Last verified baseline: focused Java 17 CI tests across Identity, Organization, Project, Work, and Dashboard passed; frontend type-check and `npm ci --ignore-scripts --dry-run` passed.
+- Record concrete implemented scope, migrations, validation, and unavoidable service-infrastructure limitations here before handoff.
+
+- Existing foundations: Organization owns companies, departments, company memberships/invitations, and membership audit; Project owns company/department projects, phases, manager IDs, and selected domain events; Work owns task/assignee/submission and task-status-history records.
+- The Platform Admin `ADMIN` role is global and remains independent of company roles.
+- This batch aligns task DTOs/UI with the backend; adds task priority, tester accept/change-request transitions and cancellation; validates current project managers and task assignees against active same-company/department membership; and scopes non-owner/admin project access by department.
+- Organization now exposes a company-scoped active-member lookup, requiring the caller to be an active member of that same company. The work/project services use it instead of trusting arbitrary UUIDs.
+- Frontend `npm run type-check`, `npm ci --ignore-scripts --dry-run`, and `git diff --check` passed. Focused Organization, Project, and Work backend tests passed in the Java 17 Maven container after a truncated Maven Central transfer was retried. The full backend suite was not run.
+- The frontend lockfile is no longer ignored and is available in the worktree. Include it in the eventual commit for the shared CI workflow's `setup-node` npm cache and `npm ci` to work from a GitHub checkout.
+- The legacy single `departmentId` remains on a company membership for compatibility. An additive `DepartmentMembership` relation now supports multiple departments and department roles, but existing links are exposed through a read fallback rather than a completed versioned backfill migration.
+- Task status history and membership audit are service-local and incomplete as a unified platform activity feed. Project progress/deadline data and company-wide task views remain unimplemented. Project/Work checks defer to active Organization membership; Bug and Recruitment private-resource mutations now check active company membership. A complete audit of every endpoint and public-read policy remains.
 - The existing response DTO is preserved. It calculates active projects, today's due tasks, open bugs, unique team members, phase completion, task status counts, a 14-day task chart, recent project/task/bug activity, and up to five active project summaries.
 - Downstream failures are allowed to surface; they are not converted into success-shaped empty data.
 - Compose supplies the internal service URLs and starts the dashboard after its API dependencies.
+
+### Department role and authorization continuation (2026-10-10)
+
+- Added `DepartmentMembership`/`DepartmentRole` as an additive Organization model, department-scoped role assignment/update routes, and `MemberResponse.departmentMemberships`. Existing `departmentId` and company roles remain intact; legacy assignment fallback is not a substitute for a versioned migration/backfill.
+- Project and Work Organization clients now consume department membership roles. Project Manager eligibility, project department visibility, task assignee eligibility, and Developer/Tester status transitions use department-scoped roles while retaining legacy compatibility.
+- Bug report/evidence reads now require active membership even for the original reporter; Project Manager reviewer rights are evaluated against current department membership. Recruitment authors must retain active company access, and department Project Managers can manage posts in their assigned departments.
+- Projects now persist optional `dueDate` and 0-100 `progress`, validate input, expose changes in project event payloads, and support frontend create/edit/progress-bar views.
+- Work exposes `GET /api/v1/companies/{companyId}/tasks`, filtering on active membership and per-task authorization; the Tasks UI shows accessible tasks across active company memberships, with company and phase filters. `/tasks/me` also filters out tasks whose company access has been revoked.
+- CI now includes Bug and Recruitment authorization tests and setup-node points at `workora/package-lock.json`. The lockfile must be committed for GitHub Actions to resolve that cache path.
+- Validation passed: 39 focused Java 17 tests (Organization 13, Project 9, Work 12, Bug 2, Recruitment 3); frontend TypeScript type-check and npm lockfile dry-run; workflow YAML parse; `git diff --check`.
+- Remaining work: versioned schema migration/backfill; audit all company-scoped endpoints and public-read behavior for suspension; implement durable cross-service activity feed; add end-to-end workflow and cross-company denial tests.
+
+### Current continuation plan (2026-10-10)
+
+- Add a versioned Organization migration/backfill for the additive department membership relation, converting valid legacy company-member assignments to explicit department roles.
+- Implement durable RabbitMQ audit events from domain services and Dashboard-owned persistence/querying. Events carry allowlisted entity IDs, action, company/department context and safe change summaries only.
+- Audit company-scoped endpoints and distinguish intentionally public reads (such as published Recruitment posts) from operations that require active membership after suspension.
+- Do not start Compose or touch local databases. Verify code, migration shape and focused tests in isolated test contexts.
 
 ## Seed tooling
 

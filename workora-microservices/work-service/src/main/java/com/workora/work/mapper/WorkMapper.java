@@ -27,6 +27,7 @@ public class WorkMapper {
                 task.getDescription(),
                 task.getDueDate(),
                 task.getStatus(),
+                task.getPriority(),
                 task.getCompletionRule(),
                 task.getCreatedBy(),
                 task.getCreatedAt(),

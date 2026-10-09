@@ -21,8 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -68,16 +70,26 @@ public class ProjectService {
             throw new ConflictException("A project with this name already exists in the department");
         }
         UUID managerId = request.projectManagerId() != null ? request.projectManagerId() : caller.userId();
+        if (request.projectManagerId() != null) {
+            authorization.requireEligibleProjectManager(companyId, departmentId, managerId);
+        }
         Project project = new Project(companyId, departmentId, name, managerId);
         project.setDescription(request.description());
+        project.setDueDate(request.dueDate());
+        project.setProgress(request.progress() == null ? 0 : request.progress());
         Project saved = projectRepository.save(project);
+        Map<String, Object> details = new HashMap<>();
+        details.put("name", saved.getName());
+        details.put("departmentId", departmentId);
+        details.put("dueDate", saved.getDueDate() == null ? "" : saved.getDueDate().toString());
+        details.put("progress", saved.getProgress());
         projectEventPublisher.publish(
                 "project.created",
                 saved.getId(),
                 companyId,
                 caller.userId(),
                 managerId,
-                Map.of("name", saved.getName(), "departmentId", departmentId)
+                details
         );
         return mapper.toResponse(saved);
     }
@@ -85,18 +97,32 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public ProjectResponse get(UUID projectId, CurrentUser caller) {
         Project project = loadActive(projectId);
-        authorization.requireCompanyMember(project.getCompanyId());
+        if (!authorization.canViewProject(project, caller)) {
+            throw new com.workora.project.exception.ForbiddenException(
+                    "You are not authorized to view this project", "PROJECT_VIEW_DENIED");
+        }
         return mapper.toResponse(project);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<ProjectResponse> listByCompany(UUID companyId, CurrentUser caller, String search, Pageable pageable) {
-        authorization.requireCompanyMember(companyId);
+        var membership = authorization.requireCompanyMember(companyId);
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
-        Page<Project> page = normalizedSearch == null
-                ? projectRepository.findByCompanyIdAndStatus(companyId, ProjectStatus.ACTIVE, pageable)
-                : projectRepository.findByCompanyIdAndStatusAndNameContainingIgnoreCase(
-                        companyId, ProjectStatus.ACTIVE, normalizedSearch, pageable);
+        Page<Project> page;
+        if (membership.isOwnerOrAdmin()) {
+            page = normalizedSearch == null
+                    ? projectRepository.findByCompanyIdAndStatus(companyId, ProjectStatus.ACTIVE, pageable)
+                    : projectRepository.findByCompanyIdAndStatusAndNameContainingIgnoreCase(
+                            companyId, ProjectStatus.ACTIVE, normalizedSearch, pageable);
+        } else if (membership.departmentIds().isEmpty()) {
+            page = Page.empty(pageable);
+        } else {
+            page = normalizedSearch == null
+                    ? projectRepository.findByCompanyIdAndDepartmentIdInAndStatus(
+                            companyId, membership.departmentIds(), ProjectStatus.ACTIVE, pageable)
+                    : projectRepository.findByCompanyIdAndDepartmentIdInAndStatusAndNameContainingIgnoreCase(
+                            companyId, membership.departmentIds(), ProjectStatus.ACTIVE, normalizedSearch, pageable);
+        }
         return PageResponse.of(
                 page.getContent().stream().map(mapper::toResponse).toList(),
                 page.getNumber(), page.getSize(), page.getTotalElements());
@@ -111,6 +137,8 @@ public class ProjectService {
     public ProjectResponse update(UUID projectId, CurrentUser caller, ProjectUpdateRequest request) {
         Project project = loadActive(projectId);
         requireCanManageProject(project, caller);
+        LocalDate previousDueDate = project.getDueDate();
+        int previousProgress = project.getProgress();
         if (request.name() != null && !request.name().isBlank()) {
             String name = request.name().trim();
             if (!name.equals(project.getName())
@@ -124,16 +152,36 @@ public class ProjectService {
             project.setDescription(request.description());
         }
         if (request.projectManagerId() != null) {
+            authorization.requireEligibleProjectManager(
+                    project.getCompanyId(), project.getDepartmentId(), request.projectManagerId());
             project.setProjectManagerId(request.projectManagerId());
         }
+        if (Boolean.TRUE.equals(request.clearDueDate())) {
+            project.setDueDate(null);
+        } else if (request.dueDate() != null) {
+            project.setDueDate(request.dueDate());
+        }
+        if (request.progress() != null) {
+            project.setProgress(request.progress());
+        }
         Project saved = projectRepository.save(project);
+        Map<String, Object> changes = new HashMap<>();
+        changes.put("name", saved.getName());
+        if (!java.util.Objects.equals(previousDueDate, saved.getDueDate())) {
+            changes.put("dueDate", Map.of(
+                    "previous", previousDueDate == null ? "" : previousDueDate.toString(),
+                    "current", saved.getDueDate() == null ? "" : saved.getDueDate().toString()));
+        }
+        if (previousProgress != saved.getProgress()) {
+            changes.put("progress", Map.of("previous", previousProgress, "current", saved.getProgress()));
+        }
         projectEventPublisher.publish(
                 "project.updated",
                 saved.getId(),
                 project.getCompanyId(),
                 caller.userId(),
                 project.getProjectManagerId(),
-                Map.of("name", saved.getName())
+                changes
         );
         return mapper.toResponse(saved);
     }
@@ -159,6 +207,7 @@ public class ProjectService {
     public ProjectResponse assignManager(UUID projectId, UUID managerId, CurrentUser caller) {
         Project project = loadActive(projectId);
         requireCanManageProject(project, caller);
+        authorization.requireEligibleProjectManager(project.getCompanyId(), project.getDepartmentId(), managerId);
         project.setProjectManagerId(managerId);
         return mapper.toResponse(projectRepository.save(project));
     }

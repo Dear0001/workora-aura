@@ -3,6 +3,7 @@ package com.workora.project.entity;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -27,6 +28,10 @@ public class Project {
 
     @Column(length = 2000)
     private String description;
+
+    private LocalDate dueDate;
+
+    private Integer progress = 0;
 
     /** Keycloak subject id of the project manager. */
     private UUID projectManagerId;
@@ -91,6 +96,22 @@ public class Project {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public int getProgress() {
+        return progress == null ? 0 : progress;
+    }
+
+    public void setProgress(Integer progress) {
+        this.progress = progress;
     }
 
     public UUID getProjectManagerId() {

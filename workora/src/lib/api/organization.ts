@@ -136,19 +136,22 @@ export const organizationApi = {
 
   // PATCH /api/organization/api/v1/departments/{departmentId}
   updateDepartment: async (
+    companyId: string,
     departmentId: string,
     data: Partial<Department>
   ): Promise<ApiResponse<Department>> => {
     const res = await apiClient.patch<ApiResponse<Department>>(
-      `${BASE}/departments/${departmentId}`,
+      `${BASE}/companies/${companyId}/departments/${departmentId}`,
       data
     );
     return res.data;
   },
 
   // DELETE /api/organization/api/v1/departments/{departmentId}
-  deleteDepartment: async (departmentId: string): Promise<ApiResponse<string>> => {
-    const res = await apiClient.delete<ApiResponse<string>>(`${BASE}/departments/${departmentId}`);
+  deleteDepartment: async (companyId: string, departmentId: string): Promise<ApiResponse<Department>> => {
+    const res = await apiClient.delete<ApiResponse<Department>>(
+      `${BASE}/companies/${companyId}/departments/${departmentId}`
+    );
     return res.data;
   },
 
@@ -158,6 +161,13 @@ export const organizationApi = {
   listMembers: async (companyId: string): Promise<ApiResponse<CompanyMember[]>> => {
     const res = await apiClient.get<ApiResponse<CompanyMember[]>>(
       `${BASE}/companies/${companyId}/members`
+    );
+    return res.data;
+  },
+
+  getMyMembership: async (companyId: string): Promise<ApiResponse<CompanyMember>> => {
+    const res = await apiClient.get<ApiResponse<CompanyMember>>(
+      `${BASE}/companies/${companyId}/members/me`
     );
     return res.data;
   },
@@ -242,10 +252,24 @@ export const organizationApi = {
   // POST /api/organization/api/v1/departments/{departmentId}/members/{userId}
   addDepartmentMember: async (
     departmentId: string,
-    userId: string
-  ): Promise<ApiResponse<string>> => {
-    const res = await apiClient.post<ApiResponse<string>>(
-      `${BASE}/departments/${departmentId}/members/${userId}`
+    userId: string,
+    data?: { role: 'DEPARTMENT_MANAGER' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'BUG_HUNTER' }
+  ): Promise<ApiResponse<CompanyMember>> => {
+    const res = await apiClient.post<ApiResponse<CompanyMember>>(
+      `${BASE}/departments/${departmentId}/members/${userId}`,
+      data
+    );
+    return res.data;
+  },
+
+  updateDepartmentMemberRole: async (
+    departmentId: string,
+    userId: string,
+    role: 'DEPARTMENT_MANAGER' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'BUG_HUNTER'
+  ): Promise<ApiResponse<CompanyMember>> => {
+    const res = await apiClient.put<ApiResponse<CompanyMember>>(
+      `${BASE}/departments/${departmentId}/members/${userId}/role`,
+      { role }
     );
     return res.data;
   },
@@ -254,8 +278,8 @@ export const organizationApi = {
   removeDepartmentMember: async (
     departmentId: string,
     userId: string
-  ): Promise<ApiResponse<string>> => {
-    const res = await apiClient.delete<ApiResponse<string>>(
+  ): Promise<ApiResponse<void>> => {
+    const res = await apiClient.delete<ApiResponse<void>>(
       `${BASE}/departments/${departmentId}/members/${userId}`
     );
     return res.data;

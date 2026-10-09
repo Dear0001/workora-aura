@@ -18,6 +18,17 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     Page<Project> findByCompanyIdAndStatusAndNameContainingIgnoreCase(UUID companyId, ProjectStatus status, String name, Pageable pageable);
 
+    Page<Project> findByCompanyIdAndDepartmentIdAndStatus(UUID companyId, UUID departmentId, ProjectStatus status, Pageable pageable);
+
+    Page<Project> findByCompanyIdAndDepartmentIdAndStatusAndNameContainingIgnoreCase(
+            UUID companyId, UUID departmentId, ProjectStatus status, String name, Pageable pageable);
+
+    Page<Project> findByCompanyIdAndDepartmentIdInAndStatus(
+            UUID companyId, List<UUID> departmentIds, ProjectStatus status, Pageable pageable);
+
+    Page<Project> findByCompanyIdAndDepartmentIdInAndStatusAndNameContainingIgnoreCase(
+            UUID companyId, List<UUID> departmentIds, ProjectStatus status, String name, Pageable pageable);
+
     List<Project> findByDepartmentIdAndStatus(UUID departmentId, ProjectStatus status);
 
     boolean existsByDepartmentIdAndNameAndStatus(UUID departmentId, String name, ProjectStatus status);

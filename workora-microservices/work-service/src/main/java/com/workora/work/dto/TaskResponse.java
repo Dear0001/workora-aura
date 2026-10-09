@@ -2,6 +2,7 @@ package com.workora.work.dto;
 
 import com.workora.work.entity.CompletionRule;
 import com.workora.work.entity.TaskStatus;
+import com.workora.work.entity.TaskPriority;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ public record TaskResponse(
         String description,
         LocalDate dueDate,
         TaskStatus status,
+        TaskPriority priority,
         CompletionRule completionRule,
         UUID createdBy,
         Instant createdAt,

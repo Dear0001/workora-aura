@@ -10,33 +10,35 @@ import {
   Paperclip,
   Send,
   Trash2,
-  Download,
   FileText,
   ImageIcon,
   Clock,
   ChevronDown,
   User,
+  UserPlus,
+  UserMinus,
   X,
   Upload,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { workApi, type Task, type TaskAssignee, type TaskSubmission, type TaskAttachment } from '@/lib/api/work';
+import { getAllowedTaskTransitions, workApi, type Task, type TaskAssignee, type TaskSubmission, type TaskAttachment, type TaskHistory } from '@/lib/api/work';
 import { projectsApi, type Phase } from '@/lib/api/projects';
+import { organizationApi } from '@/lib/api/organization';
+import { identityApi } from '@/lib/api/identity';
+import type { CompanyMember } from '@/lib/api/types';
 
 const STATUS_COLORS: Record<string, string> = {
-  OPEN: 'bg-muted text-muted-foreground border border-border',
+  DRAFT: 'bg-muted text-muted-foreground border border-border',
+  ASSIGNED: 'bg-violet-50 text-violet-700 border border-violet-200',
+  NOT_YET: 'bg-muted text-muted-foreground border border-border',
   IN_PROGRESS: 'bg-blue-50 text-blue-700 border border-blue-200',
-  IN_REVIEW: 'bg-amber-50 text-amber-700 border border-amber-200',
-  DONE: 'bg-green-50 text-green-700 border border-green-200',
+  SUBMITTED: 'bg-amber-50 text-amber-700 border border-amber-200',
+  ACCEPTED: 'bg-teal-50 text-teal-700 border border-teal-200',
+  CHANGES_REQUESTED: 'bg-orange-50 text-orange-700 border border-orange-200',
+  COMPLETED: 'bg-green-50 text-green-700 border border-green-200',
   CANCELLED: 'bg-red-50 text-red-600 border border-red-200',
-};
-
-const SUBMISSION_STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-700 border border-amber-200',
-  APPROVED: 'bg-green-50 text-green-700 border border-green-200',
-  REJECTED: 'bg-red-50 text-red-600 border border-red-200',
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -47,10 +49,14 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const STATUS_HISTORY_LABELS: Record<string, string> = {
-  OPEN: 'Task opened',
+  DRAFT: 'Task created',
+  ASSIGNED: 'Task assigned',
+  NOT_YET: 'Task not started',
   IN_PROGRESS: 'Work started',
-  IN_REVIEW: 'Submitted for review',
-  DONE: 'Marked as done',
+  SUBMITTED: 'Submitted for testing',
+  ACCEPTED: 'Testing passed',
+  CHANGES_REQUESTED: 'Changes requested',
+  COMPLETED: 'Task completed',
   CANCELLED: 'Task cancelled',
 };
 
@@ -67,11 +73,6 @@ function FileIcon({ fileName }: { fileName: string }) {
   return <FileText size={16} className="text-muted-foreground" />;
 }
 
-interface StatusHistoryEntry {
-  status: string;
-  timestamp: string;
-}
-
 interface Props {
   taskId: string;
 }
@@ -80,9 +81,13 @@ export default function TaskDetailContent({ taskId }: Props) {
   const [task, setTask] = useState<Task | null>(null);
   const [phase, setPhase] = useState<Phase | null>(null);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
+  const [eligibleMembers, setEligibleMembers] = useState<CompanyMember[]>([]);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
+  const [canManageTask, setCanManageTask] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
-  const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
+  const [statusHistory, setStatusHistory] = useState<TaskHistory[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Submit-work form state
@@ -96,29 +101,25 @@ export default function TaskDetailContent({ taskId }: Props) {
   // Status change
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const companyId = task?.companyId;
+  const departmentId = task?.departmentId;
+  const projectId = task?.projectId;
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [taskRes, assigneesRes, submissionsRes, attachmentsRes] = await Promise.all([
+      const [taskRes, submissionsRes, attachmentsRes, historyRes] = await Promise.all([
         workApi.getTask(taskId),
-        workApi.listAssignees(taskId),
         workApi.listSubmissions(taskId),
         workApi.listAttachments(taskId),
+        workApi.getTaskHistory(taskId),
       ]);
-      const t = taskRes.data;
+      const t = taskRes.data.task;
       setTask(t);
-      setAssignees(assigneesRes.data ?? []);
+      setAssignees(taskRes.data.assignees ?? []);
       setSubmissions(submissionsRes.data ?? []);
       setAttachments(attachmentsRes.data ?? []);
-
-      // Build synthetic status history from task timestamps
-      const history: StatusHistoryEntry[] = [];
-      if (t.createdAt) history.push({ status: 'OPEN', timestamp: t.createdAt });
-      if (t.status && t.status !== 'OPEN' && t.updatedAt) {
-        history.push({ status: t.status, timestamp: t.updatedAt });
-      }
-      setStatusHistory(history);
+      setStatusHistory(historyRes.data ?? []);
 
       // Load phase info
       if (t.phaseId) {
@@ -136,15 +137,64 @@ export default function TaskDetailContent({ taskId }: Props) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const handleStatusChange = async (status: string) => {
+  useEffect(() => {
+    if (!companyId || !departmentId || !projectId) return;
+    let cancelled = false;
+    Promise.all([
+      organizationApi.getMyMembership(companyId),
+      identityApi.getMe(),
+      organizationApi.listDepartmentMembers(departmentId),
+    ]).then(async ([membershipResponse, profileResponse, membersResponse]) => {
+      if (cancelled) return;
+      const role = membershipResponse.data.role;
+      const departmentRole = membershipResponse.data.departmentMemberships
+        ?.find(assignment => assignment.departmentId === departmentId)?.role;
+      let isProjectManager = false;
+      if ((departmentRole === 'PROJECT_MANAGER'
+        || (role === 'PROJECT_MANAGER' && membershipResponse.data.departmentId === departmentId))) {
+        const projectResponse = await projectsApi.getProject(projectId);
+        isProjectManager = projectResponse.data.projectManagerId === profileResponse.data.id;
+      }
+      setCanManageTask(role === 'OWNER' || role === 'ADMIN' || isProjectManager);
+      setEligibleMembers(membersResponse.data.filter(member => {
+        const departmentAssignment = member.departmentMemberships
+          ?.find(assignment => assignment.departmentId === departmentId);
+        const assignedRole = departmentAssignment?.role
+          ?? (member.departmentId === departmentId ? member.role : undefined);
+        return assignedRole === 'DEVELOPER' || assignedRole === 'TESTER';
+      }));
+    }).catch(err => {
+      if (!cancelled) {
+        toast.error(err instanceof AxiosError
+          ? (err.response?.data?.message ?? 'Failed to load task assignment permissions')
+          : 'Failed to load task assignment permissions');
+      }
+    });
+    return () => { cancelled = true; };
+  }, [companyId, departmentId, projectId]);
+
+  const handleStatusChange = async (status: Task['status']) => {
     if (!task) return;
+    let reason: string | undefined;
+    if (status === 'CHANGES_REQUESTED') {
+      reason = window.prompt('Explain what needs to be changed:')?.trim();
+      if (!reason) {
+        if (reason !== undefined) toast.error('A reason is required to request changes');
+        return;
+      }
+    }
     setUpdatingStatus(true);
     setStatusMenuOpen(false);
     try {
-      const res = await workApi.updateTaskStatus(taskId, status);
+      const res = await workApi.updateTaskStatus(taskId, status, reason);
       setTask(res.data);
-      setStatusHistory(prev => [...prev, { status, timestamp: new Date().toISOString() }]);
       toast.success('Status updated');
+      try {
+        const historyRes = await workApi.getTaskHistory(taskId);
+        setStatusHistory(historyRes.data);
+      } catch {
+        toast.error('Status changed, but task history could not be refreshed');
+      }
     } catch (err) {
       toast.error(err instanceof AxiosError ? (err.response?.data?.message ?? 'Failed to update status') : 'Failed to update status');
     } finally {
@@ -174,23 +224,19 @@ export default function TaskDetailContent({ taskId }: Props) {
     try {
       // 1. Submit work note
       if (submitContent.trim()) {
-        const subRes = await workApi.submitWork(taskId, { content: submitContent.trim() });
+        const subRes = await workApi.submitWork(taskId, { note: submitContent.trim() });
         setSubmissions(prev => [subRes.data, ...prev]);
       }
 
       // 2. Upload attachments
       if (submitFiles.length > 0) {
         setUploadingFiles(true);
-        const uploaded: TaskAttachment[] = [];
         for (const file of submitFiles) {
-          try {
-            const fd = new FormData();
-            fd.append('file', file);
-            const attRes = await workApi.uploadAttachment(taskId, fd);
-            uploaded.push(attRes.data);
-          } catch { /* continue uploading rest */ }
+          const fd = new FormData();
+          fd.append('file', file);
+          const attRes = await workApi.uploadAttachment(taskId, fd);
+          setAttachments(prev => [attRes.data, ...prev]);
         }
-        setAttachments(prev => [...uploaded, ...prev]);
         setUploadingFiles(false);
       }
 
@@ -210,8 +256,41 @@ export default function TaskDetailContent({ taskId }: Props) {
       await workApi.removeAttachment(taskId, attachmentId);
       setAttachments(prev => prev.filter(a => a.id !== attachmentId));
       toast.success('Attachment removed');
-    } catch {
-      toast.error('Failed to remove attachment');
+    } catch (err) {
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? 'Failed to remove attachment')
+        : 'Failed to remove attachment');
+    }
+  };
+
+  const handleAssignMember = async () => {
+    if (!task || !selectedAssigneeId) return;
+    setAssigning(true);
+    try {
+      const response = await workApi.assignUser(task.id, { userId: selectedAssigneeId });
+      setAssignees(prev => [...prev, response.data]);
+      if (task.status === 'DRAFT') setTask({ ...task, status: 'ASSIGNED' });
+      setSelectedAssigneeId('');
+      toast.success('Member assigned to task');
+    } catch (err) {
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? 'Failed to assign member')
+        : 'Failed to assign member');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleRemoveAssignee = async (userId: string) => {
+    if (!task) return;
+    try {
+      await workApi.removeAssignee(task.id, userId);
+      setAssignees(prev => prev.filter(assignee => assignee.userId !== userId));
+      toast.success('Member removed from task');
+    } catch (err) {
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? 'Failed to remove member from task')
+        : 'Failed to remove member from task');
     }
   };
 
@@ -235,8 +314,8 @@ export default function TaskDetailContent({ taskId }: Props) {
     );
   }
 
-  const currentStatus = task.status ?? 'OPEN';
-  const currentPriority = task.priority ?? 'MEDIUM';
+  const currentStatus = task.status;
+  const currentPriority = task.priority;
 
   return (
     <div className="space-y-6">
@@ -250,7 +329,7 @@ export default function TaskDetailContent({ taskId }: Props) {
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className={`badge-base text-xs ${STATUS_COLORS[currentStatus] ?? STATUS_COLORS.OPEN}`}>
+            <span className={`badge-base text-xs ${STATUS_COLORS[currentStatus] ?? STATUS_COLORS.DRAFT}`}>
               {currentStatus.replace(/_/g, ' ')}
             </span>
             <span className={`flex items-center gap-1 text-xs font-medium ${PRIORITY_COLORS[currentPriority]}`}>
@@ -337,7 +416,7 @@ export default function TaskDetailContent({ taskId }: Props) {
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setStatusMenuOpen(false)} />
                         <div className="absolute left-0 top-full mt-1 w-40 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                          {['OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'].map(s => (
+                          {getAllowedTaskTransitions(currentStatus).map(s => (
                             <button
                               key={s}
                               onClick={() => handleStatusChange(s)}
@@ -449,31 +528,17 @@ export default function TaskDetailContent({ taskId }: Props) {
                         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                           <User size={13} className="text-primary" />
                         </div>
-                        <span className="text-xs font-medium text-foreground">{sub.submittedBy}</span>
+                        <span className="text-xs font-medium text-foreground">Version {sub.version} · {sub.authorId}</span>
                       </div>
-                      <span className={`badge-base text-xs ${SUBMISSION_STATUS_COLORS[sub.status ?? 'PENDING'] ?? SUBMISSION_STATUS_COLORS.PENDING}`}>
-                        {sub.status ?? 'PENDING'}
-                      </span>
                     </div>
-                    {sub.content && (
-                      <p className="text-sm text-foreground leading-relaxed mb-2">{sub.content}</p>
-                    )}
-                    {sub.reviewNote && (
-                      <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                        <p className="text-xs text-amber-700"><span className="font-semibold">Review note:</span> {sub.reviewNote}</p>
-                      </div>
+                    {sub.note && (
+                      <p className="text-sm text-foreground leading-relaxed mb-2">{sub.note}</p>
                     )}
                     <div className="flex items-center gap-3 mt-2">
                       {sub.submittedAt && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock size={10} />
                           Submitted {new Date(sub.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
-                      )}
-                      {sub.reviewedAt && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <CheckSquare size={10} />
-                          Reviewed {new Date(sub.reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       )}
                     </div>
@@ -502,7 +567,7 @@ export default function TaskDetailContent({ taskId }: Props) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{att.fileName}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {att.fileSize && <span className="text-xs text-muted-foreground">{formatBytes(att.fileSize)}</span>}
+                        {att.description && <span className="text-xs text-muted-foreground">{att.description}</span>}
                         {att.uploadedAt && (
                           <span className="text-xs text-muted-foreground">
                             · {new Date(att.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -511,17 +576,6 @@ export default function TaskDetailContent({ taskId }: Props) {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {att.fileUrl && (
-                        <a
-                          href={att.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
-                          title="Download"
-                        >
-                          <Download size={13} />
-                        </a>
-                      )}
                       <button
                         onClick={() => handleRemoveAttachment(att.id)}
                         className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all"
@@ -547,6 +601,33 @@ export default function TaskDetailContent({ taskId }: Props) {
               <h2 className="text-sm font-semibold text-foreground">Assignees</h2>
               <span className="ml-auto text-xs text-muted-foreground">{assignees.length}</span>
             </div>
+            {canManageTask && (
+              <div className="flex gap-2 mb-4">
+                <select
+                  value={selectedAssigneeId}
+                  onChange={event => setSelectedAssigneeId(event.target.value)}
+                  className="input-base text-xs"
+                >
+                  <option value="">Select a department Developer or Tester</option>
+                  {eligibleMembers
+                    .filter(member => !assignees.some(assignee => assignee.userId === member.userId))
+                    .map(member => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.email} ({member.role})
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAssignMember}
+                  disabled={!selectedAssigneeId || assigning}
+                  className="btn-primary px-3 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  aria-label="Assign task member"
+                >
+                  {assigning ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                </button>
+              </div>
+            )}
             {assignees.length === 0 ? (
               <div className="py-6 text-center">
                 <Users size={22} className="text-muted-foreground/30 mx-auto mb-2" />
@@ -558,13 +639,23 @@ export default function TaskDetailContent({ taskId }: Props) {
                   <div key={a.userId} className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <span className="text-xs font-bold text-primary">
-                        {a.firstName?.[0]?.toUpperCase()}{a.lastName?.[0]?.toUpperCase()}
+                        {a.userId.slice(0, 2).toUpperCase()}
                       </span>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{a.firstName} {a.lastName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{a.userId}</p>
+                      <p className="text-xs text-muted-foreground truncate">{a.status.replace(/_/g, ' ')}</p>
                     </div>
+                    {canManageTask && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAssignee(a.userId)}
+                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                        title="Remove assignee"
+                      >
+                        <UserMinus size={13} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -590,11 +681,12 @@ export default function TaskDetailContent({ taskId }: Props) {
                       </div>
                       <div className="pt-0.5 min-w-0">
                         <p className="text-xs font-semibold text-foreground">
-                          {STATUS_HISTORY_LABELS[entry.status] ?? entry.status.replace(/_/g, ' ')}
+                          {STATUS_HISTORY_LABELS[entry.toStatus] ?? entry.toStatus.replace(/_/g, ' ')}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {new Date(entry.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(entry.changedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
+                        {entry.reason && <p className="text-xs text-muted-foreground mt-1">{entry.reason}</p>}
                       </div>
                     </div>
                   ))}

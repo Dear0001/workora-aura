@@ -45,6 +45,15 @@ public class MemberController {
                 membershipService.getMyMembership(companyId, CurrentUser.from(jwt).userId())));
     }
 
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse<MemberResponse>> getMember(
+            @PathVariable UUID companyId,
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(ApiResponse.success(
+                membershipService.getMember(companyId, userId, CurrentUser.from(jwt).userId())));
+    }
+
     @GetMapping("/{userId}/audit")
     public ResponseEntity<ApiResponse<List<MembershipAudit>>> audit(
             @PathVariable UUID companyId,

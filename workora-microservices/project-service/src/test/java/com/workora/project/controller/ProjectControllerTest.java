@@ -21,10 +21,12 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -64,7 +66,10 @@ class ProjectControllerTest {
         when(organizationClient.resolveCompanyId(departmentId)).thenReturn(companyId);
         when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
 
-        String body = objectMapper.writeValueAsString(Map.of("name", "Mobile App"));
+        String body = objectMapper.writeValueAsString(Map.of(
+                "name", "Mobile App",
+                "dueDate", "2026-12-31",
+                "progress", 40));
 
         MvcResult result = mockMvc.perform(post("/api/v1/departments/" + departmentId + "/projects")
                         .with(jwt().jwt(tokenFor(ownerId, "owner@acme.test")))
@@ -72,6 +77,8 @@ class ProjectControllerTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.name").value("Mobile App"))
+                .andExpect(jsonPath("$.data.dueDate").value("2026-12-31"))
+                .andExpect(jsonPath("$.data.progress").value(40))
                 .andExpect(jsonPath("$.data.companyId").value(companyId.toString()))
                 .andReturn();
 
@@ -100,6 +107,55 @@ class ProjectControllerTest {
     }
 
     @Test
+    void projectProgressOutsideRange_failsValidation() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID departmentId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+
+        when(organizationClient.resolveCompanyId(departmentId)).thenReturn(companyId);
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
+
+        String body = objectMapper.writeValueAsString(Map.of("name", "Invalid Progress", "progress", 101));
+
+        mockMvc.perform(post("/api/v1/departments/" + departmentId + "/projects")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@acme.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void projectManagerCanUpdateProgressAndClearDeadline() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID departmentId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+
+        when(organizationClient.resolveCompanyId(departmentId)).thenReturn(companyId);
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
+        MvcResult created = mockMvc.perform(post("/api/v1/departments/" + departmentId + "/projects")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@acme.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Deadline Project",
+                                "dueDate", "2026-12-31",
+                                "progress", 40))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String projectId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(patch("/api/v1/projects/" + projectId)
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@acme.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "progress", 75,
+                                "clearDueDate", true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.progress").value(75))
+                .andExpect(jsonPath("$.data.dueDate").value(nullValue()));
+    }
+
+    @Test
     void departmentProjectManager_canCreateProjectInOwnDepartment() throws Exception {
         UUID pmId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
@@ -117,6 +173,31 @@ class ProjectControllerTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.name").value("Backend API"));
+    }
+
+    @Test
+    void ownerCannotAssignProjectManagerFromAnotherDepartment() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID managerId = UUID.randomUUID();
+        UUID departmentId = UUID.randomUUID();
+        UUID otherDepartmentId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+
+        when(organizationClient.resolveCompanyId(departmentId)).thenReturn(companyId);
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
+        when(organizationClient.member(companyId, managerId))
+                .thenReturn(new CallerMembership("PROJECT_MANAGER", otherDepartmentId));
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "name", "Cross Department Project",
+                "projectManagerId", managerId));
+
+        mockMvc.perform(post("/api/v1/departments/" + departmentId + "/projects")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@acme.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.data.code").value("PROJECT_MANAGER_NOT_ELIGIBLE"));
     }
 
     @Test

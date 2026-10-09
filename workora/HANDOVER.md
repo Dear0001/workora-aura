@@ -107,3 +107,28 @@ No further implementation is pending in this approved batch. Continue with the s
 - The shared repository CI workflow is at `../.github/workflows/ci.yml`. Its frontend job runs `npm ci` and `npm run type-check` from this repository.
 - Frontend lint is not currently a CI gate because the existing project-wide lint command has known baseline failures outside the admin changes.
 - Validation: `npm run type-check` passed; workflow YAML parsed successfully and `git diff --check` passed.
+
+## Company, department, project, task and activity tracking review
+
+### Remaining full-spec implementation continuation (2026-10-10)
+
+- User requested autonomous continuation through the remaining company-to-task workflow gaps.
+- Current continuation addresses production readiness: a versioned schema migration/backfill for department roles, durable cross-service activity capture/query, and a full suspension/access-policy audit.
+- Chosen activity design: domain services publish allowlisted audit events to RabbitMQ; Dashboard persists and queries events in its own database. Never include credentials, bearer tokens, or sensitive personal data.
+- Preserve service ownership, backward compatibility for existing memberships, and fail-closed authorization. Do not start Compose services or mutate local databases.
+- Last verified baseline: frontend type-check and npm lockfile dry-run passed; focused Java 17 tests passed for Organization, Project, Work, Bug, and Recruitment.
+- Concrete migration, implementation, and validation results will be recorded below as implementation proceeds.
+
+- The implementation review confirms existing company/department CRUD, memberships and invitations, company membership audit, project/phase CRUD and project manager assignment, task assignment/submissions and task status history. Platform Admin remains a separate global role.
+- The task UI/API contract now uses backend task statuses and priorities, loads real status history, supports task assignment/removal for authorized project managers and company owners/admins, and asks for feedback when requesting changes. Project creation supports selecting an active Project Manager from the same department.
+- Department member management supports multiple departments and editing each department-specific role without changing the company-wide role. Existing legacy department assignments remain visible as a compatibility fallback.
+- The backend validates same-company, same-department Project Manager eligibility and task assignees as active Developers/Testers. Project reads/lists are department scoped for non-owner/admin members.
+- Project, Work, Bug, and Recruitment organization clients consume department role assignments. Bug report/evidence access and recruitment author/manager mutations require current active company membership; suspended or revoked access no longer succeeds solely because the caller created the resource.
+- `npm run type-check`, npm lockfile dry-run, `git diff --check`, and CI workflow YAML parsing passed. Focused Java 17 tests passed: Organization 13, Project 7, Work 10, Bug authorization 2, Recruitment authorization 3.
+- The shared GitHub Actions backend job now includes focused tests for Organization, Project, Work, Bug, and Recruitment authorization.
+- The frontend lockfile is no longer ignored and exists in the worktree. It must be included in the eventual commit before GitHub Actions can resolve the `setup-node` cache path and run `npm ci`.
+- Department membership now has an additive entity/table and role endpoints; a versioned schema migration and backfill are still needed before production rollout. Do not claim all legacy department links have been migrated.
+- Projects now persist an optional deadline and a manager-maintained 0-100 progress value, with edit controls and progress bars. The detail/list due-date display uses date-only formatting to avoid timezone shifts.
+- The task view now lists accessible tasks across all active companies, with company/phase filters; the backend company-task endpoint requires active company membership and returns only tasks the caller can view. Phase/project context is loaded in bounded batches.
+- A unified cross-service activity stream and endpoint-by-endpoint suspension/public-read policy audit remain incomplete.
+- Updated `API-ENDPOINTS.md` with department assignment/update request shapes and role values, plus member lookup routes and current task status/priority semantics.

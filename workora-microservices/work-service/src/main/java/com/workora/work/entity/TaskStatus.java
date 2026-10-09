@@ -8,5 +8,6 @@ public enum TaskStatus {
     SUBMITTED,
     ACCEPTED,
     CHANGES_REQUESTED,
-    COMPLETED
+    COMPLETED,
+    CANCELLED
 }

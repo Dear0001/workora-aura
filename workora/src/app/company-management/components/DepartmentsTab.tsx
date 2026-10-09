@@ -58,8 +58,12 @@ export default function DepartmentsTab({ onCreateDept, companyId, onCreated }: P
 
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
+    if (!companyId) {
+      toast.error('Select a company before archiving this department');
+      return;
+    }
     try {
-      await organizationApi.deleteDepartment(id);
+      await organizationApi.deleteDepartment(companyId, id);
       setDepartments(prev => prev.filter(dept => dept.id !== id));
       toast.success(`Department "${name}" removed`);
     } catch (err) {
@@ -108,7 +112,7 @@ export default function DepartmentsTab({ onCreateDept, companyId, onCreated }: P
                         className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
                       >
                         <Shield size={12} className="text-muted-foreground" />
-                        Manage Roles
+                        Manage Members
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingDept(dept); setActiveMenu(null); }}

@@ -1,18 +1,24 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckSquare, Plus, Search, MoreHorizontal, Trash2, Loader2, Calendar, Flag, ChevronDown } from 'lucide-react';
+import { CheckSquare, Plus, Search, MoreHorizontal, Trash2, Loader2, Calendar, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { workApi, type Task } from '@/lib/api/work';
+import { getAllowedTaskTransitions, workApi, type Task } from '@/lib/api/work';
 import { projectsApi, type Phase } from '@/lib/api/projects';
 import { organizationApi } from '@/lib/api/organization';
+import type { Company } from '@/lib/api/types';
+import { formatDateOnly } from '@/lib/date';
 import Link from 'next/link';
 
 const STATUS_COLORS: Record<string, string> = {
-  OPEN: 'bg-muted text-muted-foreground border border-border',
+  DRAFT: 'bg-muted text-muted-foreground border border-border',
+  ASSIGNED: 'bg-violet-50 text-violet-700 border border-violet-200',
+  NOT_YET: 'bg-muted text-muted-foreground border border-border',
   IN_PROGRESS: 'bg-blue-50 text-blue-700 border border-blue-200',
-  IN_REVIEW: 'bg-amber-50 text-amber-700 border border-amber-200',
-  DONE: 'bg-green-50 text-green-700 border border-green-200',
+  SUBMITTED: 'bg-amber-50 text-amber-700 border border-amber-200',
+  ACCEPTED: 'bg-teal-50 text-teal-700 border border-teal-200',
+  CHANGES_REQUESTED: 'bg-orange-50 text-orange-700 border border-orange-200',
+  COMPLETED: 'bg-green-50 text-green-700 border border-green-200',
   CANCELLED: 'bg-red-50 text-red-600 border border-red-200',
 };
 
@@ -32,7 +38,7 @@ interface CreateTaskModalProps {
 function CreateTaskModal({ phaseId, onClose, onCreated }: CreateTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('MEDIUM');
+  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -71,7 +77,16 @@ function CreateTaskModal({ phaseId, onClose, onCreated }: CreateTaskModalProps) 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Priority</label>
-              <select value={priority} onChange={e => setPriority(e.target.value)} className="input-base">
+              <select
+                value={priority}
+                onChange={e => {
+                  const value = e.target.value;
+                  if (value === 'LOW' || value === 'MEDIUM' || value === 'HIGH' || value === 'CRITICAL') {
+                    setPriority(value);
+                  }
+                }}
+                className="input-base"
+              >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
@@ -99,9 +114,21 @@ interface Props {
   initialPhaseId?: string;
 }
 
+async function mapInBatches<T, R>(items: T[], batchSize: number, load: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  for (let offset = 0; offset < items.length; offset += batchSize) {
+    const batch = items.slice(offset, offset + batchSize);
+    results.push(...await Promise.all(batch.map(load)));
+  }
+  return results;
+}
+
 export default function TasksContent({ initialPhaseId }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [phases, setPhases] = useState<Phase[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+  const [companyFilter, setCompanyFilter] = useState('ALL');
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>(initialPhaseId ?? '');
   const [loading, setLoading] = useState(false);
   const [loadingPhases, setLoadingPhases] = useState(true);
@@ -110,51 +137,75 @@ export default function TasksContent({ initialPhaseId }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  // Load phases from all company projects
+  // Load company, project, and phase context so the task view covers every active membership.
   useEffect(() => {
     (async () => {
       setLoadingPhases(true);
       try {
-        const orgRes = await organizationApi.listCompanies({ page: 0, size: 1 });
-        const cId = orgRes.data?.content?.[0]?.id;
-        if (!cId) { setLoadingPhases(false); return; }
-        const projRes = await projectsApi.listCompanyProjects(cId, { page: 0, size: 50 });
-        const projects = projRes.data?.content ?? [];
-        const allPhases: Phase[] = [];
-        await Promise.all(projects.map(async (proj) => {
-          try {
-            const pRes = await projectsApi.listPhases(proj.id);
-            const list = Array.isArray(pRes.data) ? pRes.data : (pRes.data as { content?: Phase[] })?.content ?? [];
-            allPhases.push(...list);
-          } catch { /* ignore */ }
-        }));
+        const firstCompanyPage = await organizationApi.listCompanies({ page: 0, size: 100 });
+        const allCompanies = [...(firstCompanyPage.data?.content ?? [])];
+        for (let page = 1; page < (firstCompanyPage.data?.totalPages ?? 0); page += 1) {
+          const response = await organizationApi.listCompanies({ page, size: 100 });
+          allCompanies.push(...(response.data?.content ?? []));
+        }
+        setCompanies(allCompanies);
+        const projectPages = await mapInBatches(allCompanies, 10, async company => {
+          const firstPage = await projectsApi.listCompanyProjects(company.id, { page: 0, size: 100 });
+          const companyProjects = [...(firstPage.data?.content ?? [])];
+          for (let page = 1; page < (firstPage.data?.totalPages ?? 0); page += 1) {
+            const response = await projectsApi.listCompanyProjects(company.id, { page, size: 100 });
+            companyProjects.push(...(response.data?.content ?? []));
+          }
+          return companyProjects;
+        });
+        const allProjects = projectPages.flat();
+        setProjectNames(Object.fromEntries(allProjects.map(project => [project.id, project.name])));
+        const phasePages = await mapInBatches(allProjects, 10, async project => {
+          const response = await projectsApi.listPhases(project.id);
+          return Array.isArray(response.data) ? response.data : [];
+        });
+        const allPhases = phasePages.flat();
         setPhases(allPhases);
-        if (!selectedPhaseId && allPhases.length > 0) setSelectedPhaseId(allPhases[0].id);
-      } catch { /* ignore */ } finally {
+      } catch (err) {
+        toast.error(err instanceof AxiosError
+          ? (err.response?.data?.message ?? 'Failed to load company project and phase context')
+          : 'Failed to load company project and phase context');
+      } finally {
         setLoadingPhases(false);
       }
     })();
   }, []);
 
   const loadTasks = useCallback(async () => {
-    if (!selectedPhaseId) return;
     setLoading(true);
     try {
-      const res = await workApi.listTasks(selectedPhaseId);
-      const list = Array.isArray(res.data) ? res.data : [];
-      setTasks(list);
+      if (selectedPhaseId) {
+        const response = await workApi.listTasks(selectedPhaseId);
+        setTasks(Array.isArray(response.data) ? response.data : []);
+      } else {
+        const responses = await mapInBatches(companies, 10, company => workApi.listCompanyTasks(company.id));
+        setTasks(responses.flatMap(response => Array.isArray(response.data) ? response.data : []));
+      }
     } catch (err) {
       toast.error(err instanceof AxiosError && !err.response ? 'Cannot reach the work service.' : 'Failed to load tasks');
     } finally {
       setLoading(false);
     }
-  }, [selectedPhaseId]);
+  }, [companies, selectedPhaseId]);
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
 
-  const handleStatusChange = async (taskId: string, status: string) => {
+  const handleStatusChange = async (taskId: string, status: Task['status']) => {
+    let reason: string | undefined;
+    if (status === 'CHANGES_REQUESTED') {
+      reason = window.prompt('Explain what needs to be changed:')?.trim();
+      if (!reason) {
+        if (reason !== undefined) toast.error('A reason is required to request changes');
+        return;
+      }
+    }
     try {
-      const res = await workApi.updateTaskStatus(taskId, status);
+      const res = await workApi.updateTaskStatus(taskId, status, reason);
       setTasks(prev => prev.map(t => t.id === taskId ? res.data : t));
       toast.success('Task status updated');
     } catch (err) {
@@ -178,11 +229,12 @@ export default function TasksContent({ initialPhaseId }: Props) {
     const q = search.toLowerCase();
     const matchSearch = !q || t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q);
     const matchStatus = statusFilter === 'ALL' || t.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchCompany = companyFilter === 'ALL' || t.companyId === companyFilter;
+    return matchSearch && matchStatus && matchCompany;
   });
 
   const statusCounts = tasks.reduce((acc, t) => {
-    acc[t.status ?? 'OPEN'] = (acc[t.status ?? 'OPEN'] ?? 0) + 1;
+    acc[t.status] = (acc[t.status] ?? 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
@@ -200,35 +252,41 @@ export default function TasksContent({ initialPhaseId }: Props) {
         )}
       </div>
 
-      {/* Phase selector */}
+      {/* Scope selectors */}
       {loadingPhases ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" />Loading phases…</div>
-      ) : phases.length > 0 ? (
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-foreground">Phase:</label>
-          <div className="relative">
-            <select
-              value={selectedPhaseId}
-              onChange={e => setSelectedPhaseId(e.target.value)}
-              className="input-base pr-8 text-sm w-64"
-            >
-              {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </div>
-        </div>
       ) : (
-        <div className="card-elevated p-6 text-center text-sm text-muted-foreground">No phases found. Create a project and add phases first.</div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm font-medium text-foreground" htmlFor="task-company-filter">Company:</label>
+          <select id="task-company-filter" value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="input-base text-sm">
+            <option value="ALL">All companies</option>
+            {companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}
+          </select>
+          <label className="text-sm font-medium text-foreground" htmlFor="task-phase-filter">Phase:</label>
+          <select id="task-phase-filter" value={selectedPhaseId} onChange={e => setSelectedPhaseId(e.target.value)} className="input-base text-sm">
+            <option value="">All accessible tasks</option>
+            {phases.map(phase => (
+              <option key={phase.id} value={phase.id}>
+                {projectNames[phase.projectId] ? `${projectNames[phase.projectId]} / ` : ''}{phase.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {!loadingPhases && phases.length === 0 && (
+        <div className="card-elevated p-4 text-center text-sm text-muted-foreground">
+          No project phases found. You can still browse tasks assigned to you.
+        </div>
       )}
 
       {/* Status summary */}
       {tasks.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: 'Open', key: 'OPEN', color: 'text-muted-foreground' },
+            { label: 'Assigned', key: 'ASSIGNED', color: 'text-violet-600' },
             { label: 'In Progress', key: 'IN_PROGRESS', color: 'text-blue-600' },
-            { label: 'In Review', key: 'IN_REVIEW', color: 'text-amber-600' },
-            { label: 'Done', key: 'DONE', color: 'text-green-600' },
+            { label: 'Submitted', key: 'SUBMITTED', color: 'text-amber-600' },
+            { label: 'Completed', key: 'COMPLETED', color: 'text-green-600' },
             { label: 'Cancelled', key: 'CANCELLED', color: 'text-red-600' },
           ].map(s => (
             <div key={s.key} className="card-elevated p-3">
@@ -246,7 +304,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
           <input type="text" placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)} className="input-base pl-8 text-sm" />
         </div>
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
-          {['ALL', 'OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'].map(s => (
+          {['ALL', 'DRAFT', 'ASSIGNED', 'NOT_YET', 'IN_PROGRESS', 'SUBMITTED', 'ACCEPTED', 'CHANGES_REQUESTED', 'COMPLETED', 'CANCELLED'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${statusFilter === s ? 'bg-card text-foreground shadow-card' : 'text-muted-foreground hover:text-foreground'}`}>
               {s === 'ALL' ? 'All' : s.replace(/_/g, ' ')}
             </button>
@@ -260,7 +318,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
       ) : filtered.length === 0 ? (
         <div className="card-elevated p-12 text-center">
           <CheckSquare size={36} className="text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">{search || statusFilter !== 'ALL' ? 'No tasks match your filters' : 'No tasks yet in this phase'}</p>
+          <p className="text-sm text-muted-foreground">{search || statusFilter !== 'ALL' || companyFilter !== 'ALL' ? 'No tasks match your filters' : selectedPhaseId ? 'No tasks yet in this phase' : 'No tasks in the selected companies'}</p>
           {!search && statusFilter === 'ALL' && selectedPhaseId && (
             <button onClick={() => setCreateOpen(true)} className="btn-primary mt-4 px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2">
               <Plus size={14} />Create First Task
@@ -288,13 +346,17 @@ export default function TasksContent({ initialPhaseId }: Props) {
                         <CheckSquare size={14} className="text-muted-foreground flex-shrink-0" />
                         <div>
                           <Link href={`/tasks/${task.id}`} className="font-medium text-foreground hover:text-primary transition-colors">{task.title}</Link>
-                          {task.description && <p className="text-xs text-muted-foreground truncate max-w-xs">{task.description}</p>}
+                          <p className="text-xs text-muted-foreground truncate max-w-xs">
+                            {[companies.find(company => company.id === task.companyId)?.name, projectNames[task.projectId], phases.find(phase => phase.id === task.phaseId)?.name, task.description]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge-base text-xs ${STATUS_COLORS[task.status ?? 'OPEN'] ?? STATUS_COLORS.OPEN}`}>
-                        {(task.status ?? 'OPEN').replace(/_/g, ' ')}
+                      <span className={`badge-base text-xs ${STATUS_COLORS[task.status] ?? STATUS_COLORS.DRAFT}`}>
+                        {task.status.replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -305,7 +367,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {task.dueDate ? (
-                        <div className="flex items-center gap-1"><Calendar size={11} />{new Date(task.dueDate).toLocaleDateString()}</div>
+                        <div className="flex items-center gap-1"><Calendar size={11} />{formatDateOnly(task.dueDate)}</div>
                       ) : '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -318,7 +380,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
                             <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
                             <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
                               <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Change Status</p>
-                              {['OPEN', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED'].map(s => (
+                              {getAllowedTaskTransitions(task.status).map(s => (
                                 <button key={s} onClick={() => handleStatusChange(task.id, s)} className={`flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors ${task.status === s ? 'text-primary font-medium' : 'text-foreground'}`}>
                                   {s.replace(/_/g, ' ')}
                                 </button>

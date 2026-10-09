@@ -55,11 +55,11 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
-      - name: Run focused admin and membership tests
+      - name: Run focused authorization and workflow tests
         run: >-
           mvn -B -ntp
-          -pl identity-service,organization-service,dashboard-service
+          -pl identity-service,organization-service,project-service,work-service,bug-service,recruitment-service,dashboard-service
           -am
-          -Dtest=AdminAccessRequestServiceTest,KeycloakServiceAdminRoleTest,MembershipServiceTest,AdminDashboardAggregationServiceTest,AdminSystemHealthServiceTest,KeycloakRoleAuthoritiesConverterTest
+          -Dtest=AdminAccessRequestServiceTest,KeycloakServiceAdminRoleTest,MembershipServiceTest,ProjectControllerTest,TaskServiceTest,BugAuthorizationTest,RecruitmentAuthorizationTest,AdminDashboardAggregationServiceTest,AdminSystemHealthServiceTest,KeycloakRoleAuthoritiesConverterTest
           -Dsurefire.failIfNoSpecifiedTests=false
           test

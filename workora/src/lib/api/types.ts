@@ -99,6 +99,7 @@ export interface CompanyMember {
   role: string;
   departmentId?: string;
   departmentName?: string;
+  departmentMemberships?: { departmentId: string; role: string }[];
   joinedAt?: string;
   status?: string;
 }

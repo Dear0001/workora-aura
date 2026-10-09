@@ -54,6 +54,14 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success(taskService.listMyAssigned(CurrentUser.from(jwt))));
     }
 
+    @GetMapping("/companies/{companyId}/tasks")
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> listForCompany(
+            @PathVariable UUID companyId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(ApiResponse.success(
+                taskService.listForCompany(companyId, CurrentUser.from(jwt))));
+    }
+
     @GetMapping("/tasks/{taskId}")
     public ResponseEntity<ApiResponse<TaskDetailResponse>> get(
             @PathVariable UUID taskId,

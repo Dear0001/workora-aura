@@ -147,10 +147,10 @@ export default function ProjectDashboardContent({ projectId }: Props) {
 
       // ── Compute KPIs ──────────────────────────────────────────────────────
       const total = tasks.length;
-      const done = tasks.filter(t => t.status === 'DONE').length;
-      const open = tasks.filter(t => t.status === 'OPEN').length;
+      const done = tasks.filter(t => t.status === 'COMPLETED').length;
+      const open = tasks.filter(t => ['DRAFT', 'ASSIGNED', 'NOT_YET'].includes(t.status)).length;
       const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS').length;
-      const inReview = tasks.filter(t => t.status === 'IN_REVIEW').length;
+      const inReview = tasks.filter(t => ['SUBMITTED', 'ACCEPTED', 'CHANGES_REQUESTED'].includes(t.status)).length;
       const completionPct = total > 0 ? Math.round((done / total) * 100) : 0;
       const velocity = phaseList.length > 0 ? Math.round(done / phaseList.length) : 0;
 
@@ -191,7 +191,7 @@ export default function ProjectDashboardContent({ projectId }: Props) {
         const wl = memberMap[member.userId];
         if (!wl) return;
         wl.totalTasks++;
-        if (task.status === 'DONE') wl.doneTasks++;
+        if (task.status === 'COMPLETED') wl.doneTasks++;
         if (task.status === 'IN_PROGRESS') wl.inProgressTasks++;
         // Assign to a day based on updatedAt or createdAt
         const dateStr = task.updatedAt?.slice(0, 10) ?? task.createdAt?.slice(0, 10);

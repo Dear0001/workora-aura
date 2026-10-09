@@ -1,6 +1,7 @@
 package com.workora.bug.service;
 
 import com.workora.bug.client.OrganizationClient;
+import com.workora.bug.client.CallerMembership;
 import com.workora.bug.entity.BugReport;
 import com.workora.bug.exception.ForbiddenException;
 import com.workora.bug.exception.NotFoundException;
@@ -22,25 +23,25 @@ public class BugAuthorization {
     }
 
     public boolean isReviewer(BugReport report, CurrentUser caller) {
-        if (report.getProjectManagerId() != null && report.getProjectManagerId().equals(caller.userId())) {
-            return true;
-        }
-        try {
-            return organizationClient.myMembership(report.getCompanyId()).isOwnerOrAdmin();
-        } catch (RuntimeException ex) {
-            // A non-member must not learn that the report exists; callers fall back
-            // to the 404 path in requireCanViewReport.
-            return false;
-        }
+        CallerMembership membership = activeMembership(report);
+        return isReviewer(report, caller, membership);
+    }
+
+    public boolean isReviewer(BugReport report, CurrentUser caller, CallerMembership membership) {
+        return membership != null && isReviewerRole(report, caller, membership);
     }
 
     public boolean canViewEvidence(BugReport report, CurrentUser caller) {
-        return report.getReporterId().equals(caller.userId()) || isReviewer(report, caller);
+        CallerMembership membership = activeMembership(report);
+        return membership != null
+                && (report.getReporterId().equals(caller.userId()) || isReviewerRole(report, caller, membership));
     }
 
     public void requireCanViewReport(BugReport report, CurrentUser caller) {
         // 404 (not 403): report existence itself is sensitive to unrelated callers.
-        if (!report.getReporterId().equals(caller.userId()) && !isReviewer(report, caller)) {
+        CallerMembership membership = activeMembership(report);
+        if (membership == null || (!report.getReporterId().equals(caller.userId())
+                && !isReviewerRole(report, caller, membership))) {
             throw new NotFoundException("Bug report not found");
         }
     }
@@ -59,5 +60,21 @@ public class BugAuthorization {
                     "Only the reporter or authorized company reviewers can access bug evidence",
                     "EVIDENCE_ACCESS_DENIED");
         }
+    }
+
+    private CallerMembership activeMembership(BugReport report) {
+        try {
+            return organizationClient.myMembership(report.getCompanyId());
+        } catch (ForbiddenException | NotFoundException ex) {
+            // Hide report existence from callers without active company membership.
+            return null;
+        }
+    }
+
+    private boolean isReviewerRole(BugReport report, CurrentUser caller, CallerMembership membership) {
+        return membership.isOwnerOrAdmin()
+                || (membership.isProjectManagerOf(report.getDepartmentId())
+                && report.getProjectManagerId() != null
+                && report.getProjectManagerId().equals(caller.userId()));
     }
 }

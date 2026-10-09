@@ -12,6 +12,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -53,7 +54,7 @@ public class RestOrganizationClient implements OrganizationClient {
 
     @Override
     public CallerMembership myMembership(UUID companyId) {
-        record MemberData(String role, UUID departmentId) {
+        record MemberData(String role, UUID departmentId, List<DepartmentData> departmentMemberships) {
         }
         Envelope<MemberData> envelope = restClient.get()
                 .uri("/api/v1/companies/{companyId}/members/me", companyId)
@@ -73,7 +74,46 @@ public class RestOrganizationClient implements OrganizationClient {
         if (envelope == null || envelope.data() == null) {
             throw new AppException("Organization service returned an unexpected membership payload");
         }
-        return new CallerMembership(envelope.data().role(), envelope.data().departmentId());
+        return toMembership(envelope.data().role(), envelope.data().departmentId(),
+                envelope.data().departmentMemberships());
+    }
+
+    @Override
+    public CallerMembership member(UUID companyId, UUID userId) {
+        record MemberData(String role, UUID departmentId, List<DepartmentData> departmentMemberships) {
+        }
+        Envelope<MemberData> envelope = restClient.get()
+                .uri("/api/v1/companies/{companyId}/members/{userId}", companyId, userId)
+                .headers(this::forwardAuth)
+                .retrieve()
+                .onStatus(status -> status.value() == 404,
+                        (request, response) -> {
+                            throw new NotFoundException("Member not found in this company");
+                        })
+                .onStatus(status -> status.is4xxClientError(),
+                        (request, response) -> {
+                            throw new ForbiddenException(
+                                    "Not authorized to view company membership", "NOT_A_COMPANY_MEMBER");
+                        })
+                .body(new org.springframework.core.ParameterizedTypeReference<Envelope<MemberData>>() {
+                });
+        if (envelope == null || envelope.data() == null) {
+            throw new AppException("Organization service returned an unexpected membership payload");
+        }
+        return toMembership(envelope.data().role(), envelope.data().departmentId(),
+                envelope.data().departmentMemberships());
+    }
+
+    private CallerMembership toMembership(String role, UUID departmentId, List<DepartmentData> departments) {
+        List<CallerMembership.DepartmentRoleAssignment> assignments = departments == null ? List.of()
+                : departments.stream()
+                .map(department -> new CallerMembership.DepartmentRoleAssignment(
+                        department.departmentId(), department.role()))
+                .toList();
+        return new CallerMembership(role, departmentId, assignments);
+    }
+
+    private record DepartmentData(UUID departmentId, String role) {
     }
 
     private void forwardAuth(HttpHeaders headers) {

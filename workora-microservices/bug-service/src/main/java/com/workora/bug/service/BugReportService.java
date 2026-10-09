@@ -97,10 +97,10 @@ public class BugReportService {
     public List<BugReportResponse> listForPhase(UUID phaseId, CurrentUser caller) {
         // Resolving through the Project service authorizes the caller against the phase.
         ProjectContext context = projectClient.resolvePhase(phaseId);
-        boolean reviewer = organizationClient.myMembership(context.companyId()).isOwnerOrAdmin()
-                || (context.projectManagerId() != null && context.projectManagerId().equals(caller.userId()));
+        var membership = organizationClient.myMembership(context.companyId());
         return bugReportRepository.findByPhaseId(phaseId).stream()
-                .filter(report -> reviewer || report.getReporterId().equals(caller.userId()))
+                .filter(report -> report.getReporterId().equals(caller.userId())
+                        || authorization.isReviewer(report, caller, membership))
                 .map(mapper::toResponse)
                 .toList();
     }
@@ -108,6 +108,7 @@ public class BugReportService {
     @Transactional(readOnly = true)
     public List<BugReportResponse> listMine(CurrentUser caller) {
         return bugReportRepository.findByReporterId(caller.userId()).stream()
+                .filter(report -> authorization.canViewEvidence(report, caller))
                 .map(mapper::toResponse)
                 .toList();
     }

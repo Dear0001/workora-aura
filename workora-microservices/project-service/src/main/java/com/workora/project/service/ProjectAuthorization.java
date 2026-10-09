@@ -36,15 +36,34 @@ public class ProjectAuthorization {
         }
     }
 
+    public void requireEligibleProjectManager(UUID companyId, UUID departmentId, UUID managerId) {
+        CallerMembership candidate = organizationClient.member(companyId, managerId);
+        if (!candidate.isProjectManagerOf(departmentId)) {
+            throw new ForbiddenException(
+                    "The project manager must be an active project manager in this department",
+                    "PROJECT_MANAGER_NOT_ELIGIBLE");
+        }
+    }
+
     public void requireCanManageProject(Project project, CurrentUser caller) {
         CallerMembership membership = organizationClient.myMembership(project.getCompanyId());
         boolean ownerOrAdmin = membership.isOwnerOrAdmin();
-        boolean isProjectManager = project.getProjectManagerId() != null
+        boolean isProjectManager = membership.isProjectManagerOf(project.getDepartmentId())
+                && project.getProjectManagerId() != null
                 && project.getProjectManagerId().equals(caller.userId());
         if (!ownerOrAdmin && !isProjectManager) {
             throw new ForbiddenException(
                     "Only the project manager or a company owner/administrator can manage this project",
                     "PROJECT_MANAGE_DENIED");
         }
+    }
+
+    public boolean canViewProject(Project project, CurrentUser caller) {
+        CallerMembership membership = organizationClient.myMembership(project.getCompanyId());
+        return membership.isOwnerOrAdmin()
+                || membership.isAssignedToDepartment(project.getDepartmentId())
+                || (membership.isProjectManagerOf(project.getDepartmentId())
+                    && project.getProjectManagerId() != null
+                    && project.getProjectManagerId().equals(caller.userId()));
     }
 }

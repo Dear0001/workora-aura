@@ -43,7 +43,7 @@ public class RecruitmentPostService {
             throw new AppException("departmentId is required");
         }
         UUID companyId = organizationClient.resolveCompanyId(request.departmentId());
-        authorization.requireCanPublish(companyId, caller);
+        authorization.requireCanPublish(companyId, request.departmentId(), caller);
 
         RecruitmentPost post = new RecruitmentPost();
         post.setCompanyId(companyId);

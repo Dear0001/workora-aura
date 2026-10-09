@@ -1,28 +1,10 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Loader2, Shield, UserMinus, ChevronDown, Search, Users } from 'lucide-react';
+import { X, Loader2, Shield, UserMinus, Search, Users, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { organizationApi } from '@/lib/api/organization';
 import { AxiosError } from 'axios';
 import type { CompanyMember, Department } from '@/lib/api/types';
-
-const ROLES = [
-  { value: 'OWNER', label: 'Owner', color: 'text-purple-700 bg-purple-50 border-purple-200' },
-  { value: 'ADMIN', label: 'Admin', color: 'text-violet-700 bg-violet-50 border-violet-200' },
-  { value: 'PROJECT_MANAGER', label: 'Project Manager', color: 'text-blue-700 bg-blue-50 border-blue-200' },
-  { value: 'DEVELOPER', label: 'Developer', color: 'text-green-700 bg-green-50 border-green-200' },
-  { value: 'TESTER', label: 'Tester', color: 'text-amber-700 bg-amber-50 border-amber-200' },
-  { value: 'BUG_HUNTER', label: 'Bug Hunter', color: 'text-rose-700 bg-rose-50 border-rose-200' },
-];
-
-const ROLE_BADGE: Record<string, string> = {
-  OWNER: 'bg-purple-50 text-purple-700 border border-purple-200',
-  ADMIN: 'bg-violet-50 text-violet-700 border border-violet-200',
-  PROJECT_MANAGER: 'bg-blue-50 text-blue-700 border border-blue-200',
-  DEVELOPER: 'bg-green-50 text-green-700 border border-green-200',
-  TESTER: 'bg-amber-50 text-amber-700 border border-amber-200',
-  BUG_HUNTER: 'bg-rose-50 text-rose-700 border border-rose-200',
-};
 
 interface Props {
   department: Department;
@@ -30,37 +12,46 @@ interface Props {
   onClose: () => void;
 }
 
-interface MemberRoleState {
-  selectedRole: string;
-  saving: boolean;
-  removing: boolean;
-  dropdownOpen: boolean;
-}
+type DepartmentRole = 'DEPARTMENT_MANAGER' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'BUG_HUNTER';
+
+const DEPARTMENT_ROLES: { value: DepartmentRole; label: string }[] = [
+  { value: 'DEPARTMENT_MANAGER', label: 'Department Manager' },
+  { value: 'PROJECT_MANAGER', label: 'Project Manager' },
+  { value: 'DEVELOPER', label: 'Developer' },
+  { value: 'TESTER', label: 'Tester' },
+  { value: 'BUG_HUNTER', label: 'Bug Hunter' },
+];
 
 export default function DepartmentRoleModal({ department, companyId, onClose }: Props) {
   const [members, setMembers] = useState<CompanyMember[]>([]);
+  const [companyMembers, setCompanyMembers] = useState<CompanyMember[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+  const [selectedDepartmentRole, setSelectedDepartmentRole] = useState<DepartmentRole>('DEVELOPER');
+  const [departmentRoles, setDepartmentRoles] = useState<Record<string, DepartmentRole>>({});
+  const [savingRoles, setSavingRoles] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [memberStates, setMemberStates] = useState<Record<string, MemberRoleState>>({});
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await organizationApi.listDepartmentMembers(department.id);
+      const companyRes = await organizationApi.listMembers(companyId);
       const list: CompanyMember[] = Array.isArray(res.data)
         ? res.data
         : (res.data as { content?: CompanyMember[] })?.content ?? [];
       setMembers(list);
-      const states: Record<string, MemberRoleState> = {};
-      list.forEach(m => {
-        states[m.userId] = {
-          selectedRole: m.role ?? 'DEVELOPER',
-          saving: false,
-          removing: false,
-          dropdownOpen: false,
-        };
+      setCompanyMembers(companyRes.data);
+      const nextRoles: Record<string, DepartmentRole> = {};
+      list.forEach(member => {
+        const assignment = member.departmentMemberships?.find(item => item.departmentId === department.id);
+        const legacyRole = DEPARTMENT_ROLES.find(item => item.value === member.role)?.value;
+        const role = assignment?.role ?? legacyRole;
+        const knownRole = DEPARTMENT_ROLES.find(item => item.value === role)?.value;
+        if (knownRole) nextRoles[member.userId] = knownRole;
       });
-      setMemberStates(states);
+      setDepartmentRoles(nextRoles);
     } catch (err) {
       toast.error(
         err instanceof AxiosError && !err.response
@@ -69,44 +60,12 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
     } finally {
       setLoading(false);
     }
-  }, [department.id]);
+  }, [companyId, department.id]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
-  const setMemberState = (userId: string, patch: Partial<MemberRoleState>) => {
-    setMemberStates(prev => ({ ...prev, [userId]: { ...prev[userId], ...patch } }));
-  };
-
-  const handleRoleSelect = (userId: string, role: string) => {
-    setMemberState(userId, { selectedRole: role, dropdownOpen: false });
-  };
-
-  const handleSaveRole = async (member: CompanyMember) => {
-    const state = memberStates[member.userId];
-    if (!state) return;
-    setMemberState(member.userId, { saving: true });
-    try {
-      // Try PATCH (update) first; if member already has a role use update, otherwise assign
-      if (member.role && member.role !== '') {
-        await organizationApi.updateMemberRole(companyId, member.userId, { role: state.selectedRole });
-      } else {
-        await organizationApi.assignMemberRole(companyId, member.userId, { role: state.selectedRole });
-      }
-      setMembers(prev => prev.map(m => m.userId === member.userId ? { ...m, role: state.selectedRole } : m));
-      toast.success(`Role updated to ${state.selectedRole.replace(/_/g, ' ')} for ${member.firstName} ${member.lastName}`);
-    } catch (err) {
-      const msg = err instanceof AxiosError
-        ? (err.response?.data?.message ?? (!err.response ? 'Cannot reach the organization service.' : 'Failed to update role'))
-        : 'Failed to update role';
-      toast.error(msg);
-    } finally {
-      setMemberState(member.userId, { saving: false });
-    }
-  };
-
   const handleRemoveMember = async (member: CompanyMember) => {
     if (!window.confirm(`Remove ${member.firstName} ${member.lastName} from ${department.name}?`)) return;
-    setMemberState(member.userId, { removing: true });
     try {
       await organizationApi.removeDepartmentMember(department.id, member.userId);
       setMembers(prev => prev.filter(m => m.userId !== member.userId));
@@ -116,9 +75,54 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
         ? (err.response?.data?.message ?? (!err.response ? 'Cannot reach the organization service.' : 'Failed to remove member'))
         : 'Failed to remove member';
       toast.error(msg);
-      setMemberState(member.userId, { removing: false });
     }
   };
+
+  const handleSaveDepartmentRole = async (member: CompanyMember) => {
+    const selectedRole = departmentRoles[member.userId];
+    if (!selectedRole) return;
+    setSavingRoles(prev => ({ ...prev, [member.userId]: true }));
+    try {
+      const assigned = member.departmentMemberships?.some(item => item.departmentId === department.id);
+      if (assigned) {
+        await organizationApi.updateDepartmentMemberRole(department.id, member.userId, selectedRole);
+      } else {
+        await organizationApi.addDepartmentMember(department.id, member.userId, { role: selectedRole });
+      }
+      await fetchMembers();
+      toast.success(`Department role updated for ${member.firstName} ${member.lastName}`);
+    } catch (err) {
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? 'Failed to update department role')
+        : 'Failed to update department role');
+    } finally {
+      setSavingRoles(prev => ({ ...prev, [member.userId]: false }));
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!selectedMemberId) return;
+    setAddingMember(true);
+    try {
+      await organizationApi.addDepartmentMember(department.id, selectedMemberId, {
+        role: selectedDepartmentRole,
+      });
+      setSelectedMemberId('');
+      await fetchMembers();
+      toast.success('Member assigned to department');
+    } catch (err) {
+      const msg = err instanceof AxiosError
+        ? (err.response?.data?.message ?? (!err.response ? 'Cannot reach the organization service.' : 'Failed to assign member'))
+        : 'Failed to assign member';
+      toast.error(msg);
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const unassignedMembers = companyMembers.filter(
+    member => !members.some(departmentMember => departmentMember.userId === member.userId)
+  );
 
   const filtered = members.filter(m => {
     const q = search.toLowerCase();
@@ -136,8 +140,8 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
               <Shield size={20} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-foreground">Manage Member Roles</h2>
-              <p className="text-xs text-muted-foreground">{department.name} · Assign, update, or remove roles</p>
+              <h2 className="text-base font-bold text-foreground">Manage Department Members</h2>
+              <p className="text-xs text-muted-foreground">{department.name} · Manage membership and department-level roles</p>
             </div>
           </div>
           <button
@@ -146,17 +150,6 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
           >
             <X size={16} />
           </button>
-        </div>
-
-        {/* Role legend */}
-        <div className="px-6 pt-4 flex-shrink-0">
-          <div className="flex flex-wrap gap-1.5">
-            {ROLES.map(r => (
-              <span key={r.value} className={`badge-base border text-xs ${r.color}`}>
-                {r.label}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Search */}
@@ -171,6 +164,49 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
               className="input-base pl-8 text-sm"
             />
           </div>
+        </div>
+
+        <div className="px-6 pb-3">
+          <div className="flex gap-2">
+            <select
+              value={selectedDepartmentRole}
+              onChange={event => {
+                const role = DEPARTMENT_ROLES.find(item => item.value === event.target.value)?.value;
+                if (role) setSelectedDepartmentRole(role);
+              }}
+              className="input-base text-sm max-w-52"
+              aria-label="Department role for new member"
+            >
+              {DEPARTMENT_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
+            </select>
+            <select
+              value={selectedMemberId}
+              onChange={event => setSelectedMemberId(event.target.value)}
+              className="input-base text-sm"
+              disabled={unassignedMembers.length === 0}
+            >
+              <option value="">
+                {unassignedMembers.length ? 'Select a company member to assign' : 'No unassigned company members'}
+              </option>
+              {unassignedMembers.map(member => (
+                <option key={member.userId} value={member.userId}>
+                  {member.firstName || member.email} {member.lastName ?? ''}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleAddMember}
+              disabled={!selectedMemberId || addingMember}
+              className="btn-primary whitespace-nowrap px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {addingMember ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+              Assign
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            A member can be assigned to one department at a time. Reassigning moves them from their current department; their company role remains company-wide.
+          </p>
         </div>
 
         {/* Member list */}
@@ -190,14 +226,7 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
               </p>
             </div>
           ) : (
-            filtered.map(member => {
-              const state = memberStates[member.userId];
-              if (!state) return null;
-              const currentRole = ROLES.find(r => r.value === member.role);
-              const selectedRoleObj = ROLES.find(r => r.value === state.selectedRole);
-              const hasChanged = state.selectedRole !== (member.role ?? 'DEVELOPER');
-
-              return (
+            filtered.map(member => (
                 <div
                   key={member.userId}
                   className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors"
@@ -217,75 +246,40 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
                     <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                   </div>
 
-                  {/* Current role badge */}
-                  {currentRole && (
-                    <span className={`badge-base border text-xs hidden sm:inline-flex flex-shrink-0 ${currentRole.color}`}>
-                      {currentRole.label}
-                    </span>
-                  )}
-
-                  {/* Role selector dropdown */}
-                  <div className="relative flex-shrink-0">
-                    <button
-                      onClick={() => setMemberState(member.userId, { dropdownOpen: !state.dropdownOpen })}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                        selectedRoleObj ? selectedRoleObj.color : 'border-border text-foreground'
-                      } hover:opacity-80`}
-                    >
-                      {selectedRoleObj?.label ?? 'Select Role'}
-                      <ChevronDown size={11} className={`transition-transform ${state.dropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {state.dropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setMemberState(member.userId, { dropdownOpen: false })} />
-                        <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                          {ROLES.map(role => (
-                            <button
-                              key={role.value}
-                              onClick={() => handleRoleSelect(member.userId, role.value)}
-                              className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors hover:bg-muted ${
-                                state.selectedRole === role.value ? 'font-semibold text-primary bg-primary/5' : 'text-foreground'
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full border ${role.color}`} />
-                              {role.label}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Save role button */}
-                  <button
-                    onClick={() => handleSaveRole(member)}
-                    disabled={!hasChanged || state.saving || state.removing}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-all flex-shrink-0"
+                  <select
+                    aria-label={`Department role for ${member.email}`}
+                    value={departmentRoles[member.userId] ?? 'DEVELOPER'}
+                    onChange={event => {
+                      const role = DEPARTMENT_ROLES.find(item => item.value === event.target.value)?.value;
+                      if (role) {
+                        setDepartmentRoles(prev => ({ ...prev, [member.userId]: role }));
+                      }
+                    }}
+                    className="input-base text-xs max-w-48"
                   >
-                    {state.saving ? (
-                      <Loader2 size={11} className="animate-spin" />
-                    ) : (
-                      <Shield size={11} />
-                    )}
-                    {state.saving ? 'Saving…' : 'Save'}
+                    {DEPARTMENT_ROLES.map(role => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveDepartmentRole(member)}
+                    disabled={savingRoles[member.userId]}
+                    className="btn-secondary px-2.5 py-1.5 rounded-md text-xs disabled:opacity-50"
+                  >
+                    {savingRoles[member.userId] ? <Loader2 size={12} className="animate-spin" /> : 'Save role'}
                   </button>
 
                   {/* Remove member button */}
                   <button
                     onClick={() => handleRemoveMember(member)}
-                    disabled={state.removing || state.saving}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all flex-shrink-0"
                     title="Remove from department"
                   >
-                    {state.removing ? (
-                      <Loader2 size={13} className="animate-spin" />
-                    ) : (
-                      <UserMinus size={13} />
-                    )}
+                    <UserMinus size={13} />
                   </button>
                 </div>
-              );
-            })
+            ))
           )}
         </div>
 

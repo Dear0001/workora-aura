@@ -6,42 +6,99 @@ const BASE = '/api/work/api/v1';
 export interface Task {
   id: string;
   phaseId: string;
+  projectId: string;
+  departmentId: string;
+  companyId: string;
+  projectManagerId?: string;
   title: string;
   description?: string;
-  status?: 'OPEN' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED';
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: TaskStatus;
+  priority: TaskPriority;
+  completionRule: 'ALL_ASSIGNEES' | 'ANY_ASSIGNEE';
+  createdBy: string;
   dueDate?: string;
   createdAt?: string;
   updatedAt?: string;
-  assigneeCount?: number;
+}
+
+export type TaskStatus =
+  | 'DRAFT'
+  | 'ASSIGNED'
+  | 'NOT_YET'
+  | 'IN_PROGRESS'
+  | 'SUBMITTED'
+  | 'ACCEPTED'
+  | 'CHANGES_REQUESTED'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
+  DRAFT: ['ASSIGNED', 'CANCELLED'],
+  ASSIGNED: ['NOT_YET', 'IN_PROGRESS', 'SUBMITTED', 'CANCELLED'],
+  NOT_YET: ['IN_PROGRESS', 'SUBMITTED', 'CANCELLED'],
+  IN_PROGRESS: ['SUBMITTED', 'CANCELLED'],
+  SUBMITTED: ['ACCEPTED', 'CHANGES_REQUESTED', 'CANCELLED'],
+  ACCEPTED: ['COMPLETED', 'CANCELLED'],
+  CHANGES_REQUESTED: ['IN_PROGRESS', 'SUBMITTED', 'COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+export function getAllowedTaskTransitions(status: TaskStatus): TaskStatus[] {
+  return TASK_STATUS_TRANSITIONS[status];
 }
 
 export interface TaskAssignee {
+  id: string;
+  taskId: string;
   userId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  departmentId: string;
+  status: 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'ACCEPTED' | 'CHANGES_REQUESTED' | 'COMPLETED';
+  assignedBy: string;
   assignedAt?: string;
+  removedAt?: string;
+}
+
+export interface TaskDetail {
+  task: Task;
+  assignees: TaskAssignee[];
+  progress: {
+    taskId: string;
+    status: TaskStatus;
+    completionRule: 'ALL_ASSIGNEES' | 'ANY_ASSIGNEE';
+    assignees: { userId: string; status: string; submissionCount: number }[];
+  };
+}
+
+export interface TaskHistory {
+  id: string;
+  fromStatus?: TaskStatus;
+  toStatus: TaskStatus;
+  actorId: string;
+  reason?: string;
+  changedAt: string;
 }
 
 export interface TaskSubmission {
   id: string;
   taskId: string;
-  submittedBy: string;
-  content?: string;
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  authorId: string;
+  version: number;
+  note?: string;
+  attachmentKeys: string[];
   submittedAt?: string;
-  reviewedAt?: string;
-  reviewNote?: string;
 }
 
 export interface TaskAttachment {
   id: string;
   taskId: string;
+  fileKey: string;
   fileName: string;
-  fileUrl?: string;
-  fileSize?: number;
-  uploadedBy?: string;
+  mimeType: string;
+  description?: string;
+  uploadedBy: string;
   uploadedAt?: string;
 }
 
@@ -56,8 +113,8 @@ export interface WorkspaceSummary {
 export interface CreateTaskRequest {
   title: string;
   description?: string;
-  priority?: string;
   dueDate?: string;
+  priority?: TaskPriority;
 }
 
 export interface AssignTaskRequest {
@@ -65,7 +122,8 @@ export interface AssignTaskRequest {
 }
 
 export interface SubmitTaskRequest {
-  content: string;
+  note?: string;
+  attachmentKeys?: string[];
 }
 
 export const workApi = {
@@ -81,8 +139,18 @@ export const workApi = {
     return res.data;
   },
 
-  getTask: async (taskId: string): Promise<ApiResponse<Task>> => {
-    const res = await apiClient.get<ApiResponse<Task>>(`${BASE}/tasks/${taskId}`);
+  listCompanyTasks: async (companyId: string): Promise<ApiResponse<Task[]>> => {
+    const res = await apiClient.get<ApiResponse<Task[]>>(`${BASE}/companies/${companyId}/tasks`);
+    return res.data;
+  },
+
+  getTask: async (taskId: string): Promise<ApiResponse<TaskDetail>> => {
+    const res = await apiClient.get<ApiResponse<TaskDetail>>(`${BASE}/tasks/${taskId}`);
+    return res.data;
+  },
+
+  getTaskHistory: async (taskId: string): Promise<ApiResponse<TaskHistory[]>> => {
+    const res = await apiClient.get<ApiResponse<TaskHistory[]>>(`${BASE}/tasks/${taskId}/history`);
     return res.data;
   },
 
@@ -92,12 +160,15 @@ export const workApi = {
   },
 
   deleteTask: async (taskId: string): Promise<ApiResponse<Task>> => {
-    const res = await apiClient.patch<ApiResponse<Task>>(`${BASE}/tasks/${taskId}/status`, { status: 'CANCELLED' });
+    const res = await apiClient.patch<ApiResponse<Task>>(`${BASE}/tasks/${taskId}/status`, {
+      status: 'CANCELLED',
+      reason: 'Cancelled by task manager',
+    });
     return res.data;
   },
 
-  updateTaskStatus: async (taskId: string, status: string): Promise<ApiResponse<Task>> => {
-    const res = await apiClient.patch<ApiResponse<Task>>(`${BASE}/tasks/${taskId}/status`, { status });
+  updateTaskStatus: async (taskId: string, status: TaskStatus, reason?: string): Promise<ApiResponse<Task>> => {
+    const res = await apiClient.patch<ApiResponse<Task>>(`${BASE}/tasks/${taskId}/status`, { status, reason });
     return res.data;
   },
 
@@ -108,13 +179,13 @@ export const workApi = {
     return res.data;
   },
 
-  assignUser: async (taskId: string, data: AssignTaskRequest): Promise<ApiResponse<string>> => {
-    const res = await apiClient.post<ApiResponse<string>>(`${BASE}/tasks/${taskId}/assignees`, data);
+  assignUser: async (taskId: string, data: AssignTaskRequest): Promise<ApiResponse<TaskAssignee>> => {
+    const res = await apiClient.post<ApiResponse<TaskAssignee>>(`${BASE}/tasks/${taskId}/assignees`, data);
     return res.data;
   },
 
-  removeAssignee: async (taskId: string, userId: string): Promise<ApiResponse<string>> => {
-    const res = await apiClient.delete<ApiResponse<string>>(`${BASE}/tasks/${taskId}/assignees/${userId}`);
+  removeAssignee: async (taskId: string, userId: string): Promise<ApiResponse<void>> => {
+    const res = await apiClient.delete<ApiResponse<void>>(`${BASE}/tasks/${taskId}/assignees/${userId}`);
     return res.data;
   },
 

@@ -13,6 +13,7 @@ import com.workora.work.entity.Task;
 import com.workora.work.entity.TaskAttachment;
 import com.workora.work.entity.TaskAssignee;
 import com.workora.work.entity.TaskStatus;
+import com.workora.work.entity.TaskPriority;
 import com.workora.work.entity.TaskStatusHistory;
 import com.workora.work.exception.AppException;
 import com.workora.work.exception.ForbiddenException;
@@ -27,6 +28,7 @@ import com.workora.work.security.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -82,8 +84,10 @@ class TaskServiceTest {
         return new ProjectContext(phaseId, projectId, departmentId, companyId, managerId);
     }
 
-    private Task taskManagedBy(UUID manager) {
-        return new Task(phaseId, projectId, departmentId, companyId, manager, "Write docs", managerId);
+    private Task taskManagedBy(UUID manager, UUID taskId) {
+        Task task = new Task(phaseId, projectId, departmentId, companyId, manager, "Write docs", managerId);
+        ReflectionTestUtils.setField(task, "id", taskId);
+        return task;
     }
 
     @Test
@@ -102,8 +106,33 @@ class TaskServiceTest {
     }
 
     @Test
+    void listForCompany_requiresMembershipAndReturnsAccessibleTasks() {
+        Task first = taskManagedBy(managerId, UUID.randomUUID());
+        Task second = taskManagedBy(managerId, UUID.randomUUID());
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
+        when(taskRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)).thenReturn(List.of(first, second));
+
+        List<TaskResponse> tasks = service.listForCompany(companyId, manager);
+
+        assertThat(tasks).extracting(TaskResponse::id)
+                .containsExactly(first.getId(), second.getId());
+    }
+
+    @Test
+    void listForCompany_rejectsCallerWithoutActiveMembership() {
+        when(organizationClient.myMembership(companyId))
+                .thenThrow(new ForbiddenException("You are not a member of this company"));
+
+        assertThatThrownBy(() -> service.listForCompany(companyId, caller))
+                .isInstanceOf(ForbiddenException.class);
+        verify(taskRepository, never()).findByCompanyIdOrderByCreatedAtDesc(companyId);
+    }
+
+    @Test
     void create_isAllowedForProjectManager() {
         when(projectClient.resolvePhase(phaseId)).thenReturn(context());
+        when(organizationClient.myMembership(companyId))
+                .thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskResponse response = service.create(phaseId, manager,
@@ -118,6 +147,7 @@ class TaskServiceTest {
         assertThat(saved.getCompanyId()).isEqualTo(companyId);
         assertThat(saved.getProjectManagerId()).isEqualTo(managerId);
         assertThat(saved.getStatus()).isEqualTo(TaskStatus.DRAFT);
+        assertThat(saved.getPriority()).isEqualTo(TaskPriority.MEDIUM);
         assertThat(saved.getCreatedBy()).isEqualTo(managerId);
         assertThat(response.title()).isEqualTo("Write docs");
         verify(historyRepository).save(any());
@@ -126,9 +156,13 @@ class TaskServiceTest {
     @Test
     void changeStatus_rejectsInvalidTransition() {
         UUID taskId = UUID.randomUUID();
-        Task task = taskManagedBy(caller.userId());
+        Task task = taskManagedBy(caller.userId(), taskId);
         task.setStatus(TaskStatus.DRAFT);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId))
+                .thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+        when(projectClient.resolvePhase(phaseId))
+                .thenReturn(new ProjectContext(phaseId, projectId, departmentId, companyId, caller.userId()));
 
         assertThatThrownBy(() -> service.changeStatus(taskId, caller, TaskStatus.COMPLETED, "ship it"))
                 .isInstanceOf(AppException.class)
@@ -140,9 +174,12 @@ class TaskServiceTest {
     @Test
     void summary_returnsCountsAndLatestStatus() {
         UUID taskId = UUID.randomUUID();
-        Task task = taskManagedBy(managerId);
+        Task task = taskManagedBy(managerId, taskId);
         task.setStatus(TaskStatus.IN_PROGRESS);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId))
+                .thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+        when(projectClient.resolvePhase(phaseId)).thenReturn(context());
         when(taskAssigneeRepository.findByTaskIdAndRemovedAtIsNull(taskId))
                 .thenReturn(List.of(
                         new TaskAssignee(taskId, UUID.randomUUID(), departmentId, managerId),
@@ -167,9 +204,82 @@ class TaskServiceTest {
     }
 
     @Test
+    void addAssignee_requiresDeveloperOrTesterFromTaskDepartment() {
+        UUID taskId = UUID.randomUUID();
+        UUID developerId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+        when(projectClient.resolvePhase(phaseId)).thenReturn(context());
+        when(taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(taskId, developerId)).thenReturn(false);
+        when(organizationClient.member(companyId, developerId)).thenReturn(new CallerMembership("DEVELOPER", departmentId));
+        when(taskAssigneeRepository.save(any(TaskAssignee.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = service.addAssignee(taskId, manager, new com.workora.work.dto.AssigneeRequest(developerId));
+
+        assertThat(response.userId()).isEqualTo(developerId);
+        verify(taskAssigneeRepository).save(any(TaskAssignee.class));
+    }
+
+    @Test
+    void addAssignee_rejectsMemberFromAnotherDepartment() {
+        UUID taskId = UUID.randomUUID();
+        UUID developerId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+        when(projectClient.resolvePhase(phaseId)).thenReturn(context());
+        when(taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(taskId, developerId)).thenReturn(false);
+        when(organizationClient.member(companyId, developerId))
+                .thenReturn(new CallerMembership("DEVELOPER", UUID.randomUUID()));
+
+        assertThatThrownBy(() -> service.addAssignee(
+                taskId, manager, new com.workora.work.dto.AssigneeRequest(developerId)))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting(ex -> ((ForbiddenException) ex).getCode())
+                .isEqualTo("TASK_ASSIGNEE_NOT_ELIGIBLE");
+
+        verify(taskAssigneeRepository, never()).save(any(TaskAssignee.class));
+    }
+
+    @Test
+    void testerCanAcceptSubmittedTask() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        task.setStatus(TaskStatus.SUBMITTED);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("TESTER", departmentId));
+        when(taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(taskId, caller.userId())).thenReturn(true);
+        when(organizationClient.member(companyId, caller.userId())).thenReturn(new CallerMembership("TESTER", departmentId));
+        when(taskRepository.save(task)).thenReturn(task);
+
+        TaskResponse response = service.changeStatus(taskId, caller, TaskStatus.ACCEPTED, "Tests passed");
+
+        assertThat(response.status()).isEqualTo(TaskStatus.ACCEPTED);
+        verify(historyRepository).save(any(TaskStatusHistory.class));
+    }
+
+    @Test
+    void testerMustProvideReasonWhenRequestingChanges() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        task.setStatus(TaskStatus.SUBMITTED);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("TESTER", departmentId));
+        when(taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(taskId, caller.userId())).thenReturn(true);
+        when(organizationClient.member(companyId, caller.userId())).thenReturn(new CallerMembership("TESTER", departmentId));
+
+        assertThatThrownBy(() -> service.changeStatus(taskId, caller, TaskStatus.CHANGES_REQUESTED, " "))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("reason is required");
+
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
     void get_throwsNotFoundForNonAssigneeNonManager() {
         UUID taskId = UUID.randomUUID();
-        Task task = taskManagedBy(managerId);
+        Task task = taskManagedBy(managerId, taskId);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(organizationClient.myMembership(companyId))
                 .thenReturn(new CallerMembership("DEVELOPER", departmentId));
@@ -179,5 +289,20 @@ class TaskServiceTest {
         assertThatThrownBy(() -> service.get(taskId, caller))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Task not found");
+    }
+
+    @Test
+    void formerProjectManagerCannotManageTaskAfterProjectManagerChanges() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        UUID replacementManagerId = UUID.randomUUID();
+        WorkAuthorization authorization =
+                new WorkAuthorization(organizationClient, projectClient, taskAssigneeRepository);
+        when(organizationClient.myMembership(companyId))
+                .thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+        when(projectClient.resolvePhase(phaseId)).thenReturn(
+                new ProjectContext(phaseId, projectId, departmentId, companyId, replacementManagerId));
+
+        assertThat(authorization.canManage(task, manager)).isFalse();
     }
 }

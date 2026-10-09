@@ -2,7 +2,29 @@
 
 This document translates the backend plan into a concrete REST endpoint blueprint. The design follows the architecture described in Workora-Backend-Development-Plan.md and the Spring Boot best-practice guidance in SKILL-BACKEND.md.
 
-## Implementation status (verified 2026-09-25)
+## Implementation status (verified 2026-10-09)
+
+### Workflow contract update (verified 2026-10-09)
+
+The live task contract uses statuses `DRAFT`, `ASSIGNED`, `NOT_YET`,
+`IN_PROGRESS`, `SUBMITTED`, `ACCEPTED`, `CHANGES_REQUESTED`, `COMPLETED`, and
+`CANCELLED`; priorities are `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`. New tasks
+start as `DRAFT`. Assignment is a separate operation on
+`/tasks/{taskId}/assignees`, and eligible assignees must be active Developers
+or Testers in the task's department. Only an active company owner/admin or the
+project manager can manage task assignments. `CHANGES_REQUESTED` requires a
+reason; tester acceptance and changes-request actions are restricted by role.
+
+Department membership is a separate, additive relation: an active company
+member can belong to multiple departments and hold a different department role
+in each. Company-wide roles remain independent. Existing memberships that only
+have the legacy `departmentId` remain readable and are exposed as a compatible
+department-role assignment until moved to the new relation. Department-role
+assignment and update require company owner/admin authorization.
+
+Frontend CI uses the checked-in npm lockfile at `workora/package-lock.json`.
+Because the lockfile was previously ignored, include it in the commit for
+GitHub Actions to resolve the setup-node cache path and run `npm ci`.
 
 This document is now an inventory of the backend controllers in
 `E:\Bakong\workora\Workora-Microservices`, as exposed through the API gateway.
@@ -26,6 +48,12 @@ still apply.
 - Organization member role updates support the existing member route and the
   frontend-compatible `/roles` aliases.
 - Invitation acceptance supports the company-prefixed frontend route.
+- Department updates and archive use
+  `/api/v1/companies/{companyId}/departments/{departmentId}`.
+- `GET /api/v1/companies/{companyId}/members/me` returns the caller's active
+  membership; `GET /api/v1/companies/{companyId}/members/{userId}` resolves an
+  active member only after confirming the caller is an active member of that
+  same company.
 
 ### Known frontend contracts that are not backend routes
 
@@ -716,8 +744,9 @@ Content-Type: application/json
 {
   "title": "Refine onboarding checklist",
   "description": "Review the onboarding checklist and remove duplicate steps.",
-  "priority": "HIGH",
-  "assigneeIds": ["1c7d0b9a-6d93-4f3a-a2de-b8d7d51c5ad1"]
+  "dueDate": "2026-10-16",
+  "completionRule": "ALL_ASSIGNEES",
+  "priority": "HIGH"
 }
 ```
 
@@ -730,11 +759,19 @@ Response:
   "data": {
     "id": "f74f8110-5592-4d99-ac68-51c5fe31e2d3",
     "phaseId": "3ca8d3c2-0ffd-4d2d-a0d9-bdd8c9f1010f",
+    "projectId": "10000000-0000-0000-0000-000000000001",
+    "departmentId": "20000000-0000-0000-0000-000000000001",
+    "companyId": "30000000-0000-0000-0000-000000000001",
+    "projectManagerId": "40000000-0000-0000-0000-000000000001",
     "title": "Refine onboarding checklist",
     "description": "Review the onboarding checklist and remove duplicate steps.",
+    "dueDate": "2026-10-16",
     "priority": "HIGH",
-    "status": "TODO",
-    "assigneeIds": ["1c7d0b9a-6d93-4f3a-a2de-b8d7d51c5ad1"]
+    "status": "DRAFT",
+    "completionRule": "ALL_ASSIGNEES",
+    "createdBy": "40000000-0000-0000-0000-000000000001",
+    "createdAt": "2026-10-09T10:36:00Z",
+    "updatedAt": "2026-10-09T10:36:00Z"
   },
   "timestamp": "2026-09-24T10:24:00Z"
 }
@@ -1053,10 +1090,14 @@ creation endpoint enforces this allowance server-side.
 - `POST /api/v1/companies/{companyId}/departments`
 - `GET /api/v1/companies/{companyId}/departments`
 - `GET /api/v1/departments/{departmentId}`
-- `PATCH /api/v1/departments/{departmentId}`
-- `DELETE /api/v1/departments/{departmentId}`
+- `PATCH /api/v1/companies/{companyId}/departments/{departmentId}`
+- `DELETE /api/v1/companies/{companyId}/departments/{departmentId}`
 - `GET /api/v1/departments/{departmentId}/members`
-- `POST /api/v1/departments/{departmentId}/members/{userId}`
+- `POST /api/v1/departments/{departmentId}/members/{userId}` with an optional
+  `{ "role": "DEVELOPER" }` body; roles are `DEPARTMENT_MANAGER`,
+  `PROJECT_MANAGER`, `DEVELOPER`, `TESTER`, and `BUG_HUNTER`.
+- `PUT /api/v1/departments/{departmentId}/members/{userId}/role` with
+  `{ "role": "TESTER" }`.
 - `DELETE /api/v1/departments/{departmentId}/members/{userId}`
 
 ### Company membership / role endpoints
@@ -1068,6 +1109,8 @@ creation endpoint enforces this allowance server-side.
 - `PATCH /api/v1/companies/{companyId}/members/{userId}/roles`
 - `DELETE /api/v1/companies/{companyId}/members/{userId}`
 - `GET /api/v1/companies/{companyId}/members`
+- `GET /api/v1/companies/{companyId}/members/me`
+- `GET /api/v1/companies/{companyId}/members/{userId}`
 
 ### Rating endpoints
 
@@ -1227,6 +1270,11 @@ Primary database: `project_db`
 - `GET /api/v1/projects/{projectId}/members`
 - `POST /api/v1/projects/{projectId}/managers/{userId}`
 
+Project create/update requests may include a `dueDate` (`YYYY-MM-DD`) and
+`progress` integer from 0 to 100. Progress is explicitly maintained by the
+project manager or company owner/admin. To clear an existing deadline, send
+`{ "clearDueDate": true }` to the project update endpoint.
+
 ### Phase endpoints
 
 - `POST /api/v1/projects/{projectId}/phases`
@@ -1365,6 +1413,9 @@ Primary database: `task_db`
 
 - `POST /api/v1/phases/{phaseId}/tasks`
 - `GET /api/v1/phases/{phaseId}/tasks`
+- `GET /api/v1/companies/{companyId}/tasks` — lists tasks visible to the active
+  company member across its projects and departments.
+- `GET /api/v1/tasks/me` — lists the caller's currently assigned tasks.
 - `GET /api/v1/tasks/{taskId}`
 - `PATCH /api/v1/tasks/{taskId}`
 - `DELETE /api/v1/tasks/{taskId}`
@@ -1442,7 +1493,8 @@ Authorization: Bearer <access-token>
 Content-Type: application/json
 
 {
-  "status": "IN_PROGRESS"
+  "status": "CHANGES_REQUESTED",
+  "reason": "Please add a regression test for the duplicate checklist step."
 }
 ```
 
@@ -1454,8 +1506,20 @@ Response:
   "message": "Request processed successfully",
   "data": {
     "id": "f74f8110-5592-4d99-ac68-51c5fe31e2d3",
-    "status": "IN_PROGRESS",
-    "updatedAt": "2026-09-24T10:36:20Z"
+    "phaseId": "3ca8d3c2-0ffd-4d2d-a0d9-bdd8c9f1010f",
+    "projectId": "10000000-0000-0000-0000-000000000001",
+    "departmentId": "20000000-0000-0000-0000-000000000001",
+    "companyId": "30000000-0000-0000-0000-000000000001",
+    "projectManagerId": "40000000-0000-0000-0000-000000000001",
+    "title": "Refine onboarding checklist",
+    "description": "Review the onboarding checklist and remove duplicate steps.",
+    "dueDate": "2026-10-16",
+    "status": "CHANGES_REQUESTED",
+    "priority": "HIGH",
+    "completionRule": "ALL_ASSIGNEES",
+    "createdBy": "40000000-0000-0000-0000-000000000001",
+    "createdAt": "2026-10-09T10:36:00Z",
+    "updatedAt": "2026-10-09T10:36:20Z"
   },
   "timestamp": "2026-09-24T10:36:20Z"
 }

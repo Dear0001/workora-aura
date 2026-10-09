@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { projectsApi, type Project, type Phase } from '@/lib/api/projects';
+import { formatDateOnly } from '@/lib/date';
 
 const PHASE_STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-muted text-muted-foreground border border-border',
@@ -101,6 +102,8 @@ export default function ProjectDetailContent({ projectId }: Props) {
   const [editingProject, setEditingProject] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editProgress, setEditProgress] = useState('0');
   const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -125,7 +128,13 @@ export default function ProjectDetailContent({ projectId }: Props) {
     if (!project) return;
     setSaving(true);
     try {
-      const res = await projectsApi.updateProject(project.id, { name: editName, description: editDesc });
+      const res = await projectsApi.updateProject(project.id, {
+        name: editName,
+        description: editDesc,
+        dueDate: editDueDate || undefined,
+        clearDueDate: !editDueDate,
+        progress: Number(editProgress),
+      });
       setProject(res.data);
       setEditingProject(false);
       toast.success('Project updated');
@@ -188,6 +197,16 @@ export default function ProjectDetailContent({ projectId }: Props) {
           <div className="space-y-3">
             <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="input-base text-lg font-bold" />
             <textarea rows={2} value={editDesc} onChange={e => setEditDesc(e.target.value)} className="input-base resize-none text-sm" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Project Deadline</label>
+                <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="input-base" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Progress (%)</label>
+                <input type="number" min={0} max={100} value={editProgress} onChange={e => setEditProgress(e.target.value)} className="input-base" />
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={() => setEditingProject(false)} className="btn-secondary px-4 py-2 rounded-lg text-sm">Cancel</button>
               <button onClick={handleSaveProject} disabled={saving} className="btn-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2 disabled:opacity-60">
@@ -205,8 +224,17 @@ export default function ProjectDetailContent({ projectId }: Props) {
                 <h1 className="text-xl font-bold text-foreground">{project.name}</h1>
                 <p className="text-sm text-muted-foreground mt-0.5">{project.description || 'No description'}</p>
                 <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  {project.dueDate && <span className="flex items-center gap-1"><Calendar size={11} />{new Date(project.dueDate).toLocaleDateString()}</span>}
+                  {project.dueDate && <span className="flex items-center gap-1"><Calendar size={11} />{formatDateOnly(project.dueDate)}</span>}
                   <span className="flex items-center gap-1"><Users size={11} />{project.memberCount ?? 0} members</span>
+                </div>
+                <div className="mt-3 w-56 max-w-full">
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-medium text-foreground">{project.progress ?? 0}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Math.max(0, project.progress ?? 0))}%` }} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -214,7 +242,7 @@ export default function ProjectDetailContent({ projectId }: Props) {
               <Link href={`/projects/${project.id}/dashboard`} className="flex items-center gap-1.5 text-xs text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-all font-medium">
                 <CheckSquare size={12} />Dashboard
               </Link>
-              <button onClick={() => { setEditName(project.name); setEditDesc(project.description ?? ''); setEditingProject(true); }} className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted hover:bg-primary/10 hover:text-primary px-3 py-1.5 rounded-lg transition-all">
+              <button onClick={() => { setEditName(project.name); setEditDesc(project.description ?? ''); setEditDueDate(project.dueDate ?? ''); setEditProgress(String(project.progress ?? 0)); setEditingProject(true); }} className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted hover:bg-primary/10 hover:text-primary px-3 py-1.5 rounded-lg transition-all">
                 <Edit2 size={12} />Edit
               </button>
             </div>

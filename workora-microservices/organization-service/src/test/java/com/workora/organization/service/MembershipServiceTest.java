@@ -2,11 +2,15 @@ package com.workora.organization.service;
 
 import com.workora.organization.dto.ChangeRoleRequest;
 import com.workora.organization.entity.CompanyRole;
+import com.workora.organization.entity.Department;
+import com.workora.organization.entity.DepartmentMembership;
+import com.workora.organization.entity.DepartmentRole;
 import com.workora.organization.entity.Membership;
 import com.workora.organization.entity.MembershipStatus;
 import com.workora.organization.exception.ForbiddenException;
 import com.workora.organization.mapper.OrganizationMapper;
 import com.workora.organization.repository.DepartmentRepository;
+import com.workora.organization.repository.DepartmentMembershipRepository;
 import com.workora.organization.repository.MembershipRepository;
 import com.workora.organization.repository.CompanyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +40,8 @@ class MembershipServiceTest {
     private MembershipRepository membershipRepository;
     @Mock
     private DepartmentRepository departmentRepository;
+    @Mock
+    private DepartmentMembershipRepository departmentMembershipRepository;
     @Mock
     private OrganizationMapper mapper;
     @Mock
@@ -125,6 +132,57 @@ class MembershipServiceTest {
     }
 
     @Test
+    void assignToDepartment_supportsMultipleDepartmentRolesAndRemovalKeepsRemainingAssignment() {
+        UUID firstDepartmentId = UUID.randomUUID();
+        UUID secondDepartmentId = UUID.randomUUID();
+        Membership actor = membership(actorId, CompanyRole.OWNER);
+        Membership target = membership(targetId, CompanyRole.DEVELOPER);
+        ReflectionTestUtils.setField(target, "id", UUID.randomUUID());
+        Department firstDepartment = new Department(companyId, "Engineering");
+        Department secondDepartment = new Department(companyId, "Quality");
+
+        service = new MembershipService(
+                membershipRepository,
+                departmentRepository,
+                departmentMembershipRepository,
+                null,
+                null,
+                mapper,
+                null);
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(actor));
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, targetId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(target));
+        when(departmentRepository.findById(firstDepartmentId)).thenReturn(Optional.of(firstDepartment));
+        when(departmentRepository.findById(secondDepartmentId)).thenReturn(Optional.of(secondDepartment));
+        when(departmentMembershipRepository.findByMembership_IdAndDepartmentId(
+                target.getId(), firstDepartmentId)).thenReturn(Optional.empty());
+        when(departmentMembershipRepository.findByMembership_IdAndDepartmentId(
+                target.getId(), secondDepartmentId)).thenReturn(Optional.empty());
+
+        service.assignToDepartment(firstDepartmentId, targetId, actorId, DepartmentRole.DEVELOPER);
+        service.assignToDepartment(secondDepartmentId, targetId, actorId, DepartmentRole.TESTER);
+
+        assertThat(target.getDepartmentMemberships())
+                .extracting(DepartmentMembership::getRole)
+                .containsExactlyInAnyOrder(DepartmentRole.DEVELOPER, DepartmentRole.TESTER);
+        assertThat(target.getDepartmentId()).isEqualTo(firstDepartmentId);
+
+        when(departmentMembershipRepository.findByMembership_IdAndDepartmentId(
+                target.getId(), firstDepartmentId))
+                .thenReturn(target.getDepartmentMemberships().stream()
+                        .filter(assignment -> assignment.getDepartmentId().equals(firstDepartmentId))
+                        .findFirst());
+        service.removeFromDepartment(firstDepartmentId, targetId, actorId);
+
+        assertThat(target.getDepartmentMemberships())
+                .extracting(DepartmentMembership::getDepartmentId)
+                .containsExactly(secondDepartmentId);
+        assertThat(target.getDepartmentId()).isEqualTo(secondDepartmentId);
+        verify(departmentMembershipRepository).delete(any(DepartmentMembership.class));
+    }
+
+    @Test
     void listMembers_excludesOwnersFromSearchResults() {
         when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
                 .thenReturn(Optional.of(membership(actorId, CompanyRole.ADMIN)));
@@ -140,6 +198,34 @@ class MembershipServiceTest {
                 companyId, MembershipStatus.ACTIVE, CompanyRole.OWNER, "member");
         verify(membershipRepository, never()).findByCompanyIdAndStatusAndEmailContainingIgnoreCase(
                 companyId, MembershipStatus.ACTIVE, "member");
+    }
+
+    @Test
+    void getMember_requiresActiveCallerMembershipAndFindsTargetInSameCompany() {
+        Membership caller = membership(actorId, CompanyRole.DEVELOPER);
+        Membership target = membership(targetId, CompanyRole.TESTER);
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(caller));
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, targetId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(target));
+
+        service.getMember(companyId, targetId, actorId);
+
+        verify(mapper).toResponse(target);
+    }
+
+    @Test
+    void getMember_deniesLookupWhenCallerIsNotAnActiveCompanyMember() {
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getMember(companyId, targetId, actorId))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting(error -> ((ForbiddenException) error).getCode())
+                .isEqualTo("NOT_A_COMPANY_MEMBER");
+
+        verify(membershipRepository, never())
+                .findByCompanyIdAndUserIdAndStatus(companyId, targetId, MembershipStatus.ACTIVE);
     }
 
     @Test

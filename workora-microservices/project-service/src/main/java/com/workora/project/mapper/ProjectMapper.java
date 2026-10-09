@@ -30,6 +30,8 @@ public class ProjectMapper {
                 project.getName(),
                 project.getDescription(),
                 project.getProjectManagerId(),
+                project.getDueDate(),
+                project.getProgress(),
                 project.getStatus(),
                 project.getCreatedAt(),
                 project.getUpdatedAt()

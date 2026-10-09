@@ -25,4 +25,6 @@ public interface OrganizationClient {
      *         active member of the company
      */
     CallerMembership myMembership(UUID companyId);
+
+    CallerMembership member(UUID companyId, UUID userId);
 }

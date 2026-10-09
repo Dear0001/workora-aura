@@ -18,6 +18,7 @@ import com.workora.work.entity.Task;
 import com.workora.work.entity.TaskAssignee;
 import com.workora.work.entity.TaskStatus;
 import com.workora.work.entity.TaskStatusHistory;
+import com.workora.work.entity.TaskPriority;
 import com.workora.work.exception.AppException;
 import com.workora.work.exception.ConflictException;
 import com.workora.work.exception.NotFoundException;
@@ -43,14 +44,15 @@ import java.util.stream.Collectors;
 public class TaskService {
 
     private static final Map<TaskStatus, Set<TaskStatus>> ALLOWED_TRANSITIONS = Map.of(
-            TaskStatus.DRAFT, EnumSet.of(TaskStatus.ASSIGNED),
-            TaskStatus.ASSIGNED, EnumSet.of(TaskStatus.NOT_YET, TaskStatus.IN_PROGRESS, TaskStatus.SUBMITTED),
-            TaskStatus.NOT_YET, EnumSet.of(TaskStatus.IN_PROGRESS, TaskStatus.SUBMITTED),
-            TaskStatus.IN_PROGRESS, EnumSet.of(TaskStatus.SUBMITTED),
-            TaskStatus.SUBMITTED, EnumSet.of(TaskStatus.ACCEPTED, TaskStatus.CHANGES_REQUESTED),
-            TaskStatus.ACCEPTED, EnumSet.of(TaskStatus.COMPLETED),
-            TaskStatus.CHANGES_REQUESTED, EnumSet.of(TaskStatus.IN_PROGRESS, TaskStatus.SUBMITTED, TaskStatus.COMPLETED),
-            TaskStatus.COMPLETED, EnumSet.noneOf(TaskStatus.class)
+            TaskStatus.DRAFT, EnumSet.of(TaskStatus.ASSIGNED, TaskStatus.CANCELLED),
+            TaskStatus.ASSIGNED, EnumSet.of(TaskStatus.NOT_YET, TaskStatus.IN_PROGRESS, TaskStatus.SUBMITTED, TaskStatus.CANCELLED),
+            TaskStatus.NOT_YET, EnumSet.of(TaskStatus.IN_PROGRESS, TaskStatus.SUBMITTED, TaskStatus.CANCELLED),
+            TaskStatus.IN_PROGRESS, EnumSet.of(TaskStatus.SUBMITTED, TaskStatus.CANCELLED),
+            TaskStatus.SUBMITTED, EnumSet.of(TaskStatus.ACCEPTED, TaskStatus.CHANGES_REQUESTED, TaskStatus.CANCELLED),
+            TaskStatus.ACCEPTED, EnumSet.of(TaskStatus.COMPLETED, TaskStatus.CANCELLED),
+            TaskStatus.CHANGES_REQUESTED, EnumSet.of(TaskStatus.IN_PROGRESS, TaskStatus.SUBMITTED, TaskStatus.COMPLETED, TaskStatus.CANCELLED),
+            TaskStatus.COMPLETED, EnumSet.noneOf(TaskStatus.class),
+            TaskStatus.CANCELLED, EnumSet.noneOf(TaskStatus.class)
     );
 
     private final TaskRepository taskRepository;
@@ -95,6 +97,7 @@ public class TaskService {
                 caller.userId());
         task.setDescription(request.description());
         task.setDueDate(request.dueDate());
+        task.setPriority(request.priority() != null ? request.priority() : TaskPriority.MEDIUM);
         task.setCompletionRule(request.completionRule() != null ? request.completionRule() : CompletionRule.ALL_ASSIGNEES);
         task.setStatus(TaskStatus.DRAFT);
 
@@ -159,10 +162,20 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskResponse> listForPhase(UUID phaseId, CurrentUser caller) {
         ProjectContext context = projectClient.resolvePhase(phaseId);
-        boolean manager = authorization.canManageInContext(context, caller);
+        var membership = authorization.requireCompanyMember(context.companyId());
+        boolean manager = authorization.canManageInContext(context, caller, membership);
         return taskRepository.findByPhaseId(phaseId).stream()
                 .filter(task -> manager
                         || taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(task.getId(), caller.userId()))
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> listForCompany(UUID companyId, CurrentUser caller) {
+        var membership = authorization.requireCompanyMember(companyId);
+        return taskRepository.findByCompanyIdOrderByCreatedAtDesc(companyId).stream()
+                .filter(task -> authorization.canView(task, caller, membership))
                 .map(mapper::toResponse)
                 .toList();
     }
@@ -174,6 +187,7 @@ public class TaskService {
                 .distinct()
                 .toList();
         return taskRepository.findAllById(taskIds).stream()
+                .filter(task -> authorization.canView(task, caller))
                 .map(mapper::toResponse)
                 .toList();
     }
@@ -194,6 +208,9 @@ public class TaskService {
         }
         if (request.completionRule() != null) {
             task.setCompletionRule(request.completionRule());
+        }
+        if (request.priority() != null) {
+            task.setPriority(request.priority());
         }
         return mapper.toResponse(taskRepository.save(task));
     }
@@ -216,6 +233,7 @@ public class TaskService {
             throw new ConflictException("User is already an active assignee of this task");
         }
 
+        authorization.requireEligibleAssignee(task, request.userId());
         TaskAssignee assignee = taskAssigneeRepository.save(
                 new TaskAssignee(taskId, request.userId(), task.getDepartmentId(), caller.userId()));
 
@@ -242,11 +260,14 @@ public class TaskService {
     @Transactional
     public TaskResponse changeStatus(UUID taskId, CurrentUser caller, TaskStatus target, String reason) {
         Task task = load(taskId);
-        authorization.requireCanManageTask(task, caller);
+        authorization.requireCanChangeStatus(task, caller, target);
 
         TaskStatus current = task.getStatus();
         if (target == null || !ALLOWED_TRANSITIONS.getOrDefault(current, Set.of()).contains(target)) {
             throw new AppException("Invalid status transition from " + current + " to " + target);
+        }
+        if (target == TaskStatus.CHANGES_REQUESTED && (reason == null || reason.isBlank())) {
+            throw new AppException("A reason is required when requesting changes");
         }
         task.setStatus(target);
         Task saved = taskRepository.save(task);

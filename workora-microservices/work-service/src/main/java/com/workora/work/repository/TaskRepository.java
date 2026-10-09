@@ -11,4 +11,6 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByPhaseId(UUID phaseId);
 
     List<Task> findByProjectId(UUID projectId);
+
+    List<Task> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
 }

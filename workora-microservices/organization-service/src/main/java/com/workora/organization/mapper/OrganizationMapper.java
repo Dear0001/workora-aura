@@ -3,14 +3,18 @@ package com.workora.organization.mapper;
 import com.workora.organization.dto.CompanyRatingResponse;
 import com.workora.organization.dto.CompanyResponse;
 import com.workora.organization.dto.DepartmentResponse;
+import com.workora.organization.dto.DepartmentRoleAssignmentResponse;
 import com.workora.organization.dto.InvitationResponse;
 import com.workora.organization.dto.MemberResponse;
 import com.workora.organization.entity.Company;
 import com.workora.organization.entity.CompanyRating;
 import com.workora.organization.entity.Department;
+import com.workora.organization.entity.DepartmentRole;
 import com.workora.organization.entity.Invitation;
 import com.workora.organization.entity.Membership;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class OrganizationMapper {
@@ -58,12 +62,29 @@ public class OrganizationMapper {
     }
 
     public MemberResponse toResponse(Membership membership) {
+        var departmentAssignments = membership.getDepartmentMemberships().stream()
+                .map(assignment -> new DepartmentRoleAssignmentResponse(
+                        assignment.getDepartmentId(), assignment.getRole()))
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+        if (membership.getDepartmentId() != null
+                && departmentAssignments.stream().noneMatch(
+                assignment -> assignment.departmentId().equals(membership.getDepartmentId()))) {
+            DepartmentRole legacyRole;
+            try {
+                legacyRole = DepartmentRole.valueOf(membership.getRole().name());
+            } catch (IllegalArgumentException ignored) {
+                legacyRole = DepartmentRole.DEVELOPER;
+            }
+            departmentAssignments.add(new DepartmentRoleAssignmentResponse(
+                    membership.getDepartmentId(), legacyRole));
+        }
         return new MemberResponse(
                 membership.getId(),
                 membership.getUserId(),
                 membership.getEmail(),
                 membership.getRole(),
                 membership.getDepartmentId(),
+                List.copyOf(departmentAssignments),
                 membership.getStatus(),
                 membership.getCreatedAt()
         );

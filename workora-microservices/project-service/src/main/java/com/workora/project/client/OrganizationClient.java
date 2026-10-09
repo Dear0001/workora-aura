@@ -25,4 +25,10 @@ public interface OrganizationClient {
      *         active member of the company
      */
     CallerMembership myMembership(UUID companyId);
+
+    /**
+     * Returns an active company member's role and department in the caller's
+     * company context.
+     */
+    CallerMembership member(UUID companyId, UUID userId);
 }

@@ -12,6 +12,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -53,7 +54,7 @@ public class RestOrganizationClient implements OrganizationClient {
 
     @Override
     public CallerMembership myMembership(UUID companyId) {
-        record MemberData(String role, UUID departmentId) {
+        record MemberData(String role, UUID departmentId, List<DepartmentData> departmentMemberships) {
         }
         Envelope<MemberData> envelope = restClient.get()
                 .uri("/api/v1/companies/{companyId}/members/me", companyId)
@@ -73,7 +74,16 @@ public class RestOrganizationClient implements OrganizationClient {
         if (envelope == null || envelope.data() == null) {
             throw new AppException("Organization service returned an unexpected membership payload");
         }
-        return new CallerMembership(envelope.data().role(), envelope.data().departmentId());
+        List<CallerMembership.DepartmentRoleAssignment> assignments =
+                envelope.data().departmentMemberships() == null ? List.of()
+                        : envelope.data().departmentMemberships().stream()
+                        .map(department -> new CallerMembership.DepartmentRoleAssignment(
+                                department.departmentId(), department.role()))
+                        .toList();
+        return new CallerMembership(envelope.data().role(), envelope.data().departmentId(), assignments);
+    }
+
+    private record DepartmentData(UUID departmentId, String role) {
     }
 
     private void forwardAuth(HttpHeaders headers) {

@@ -3,7 +3,9 @@ package com.workora.work.service;
 import com.workora.work.client.OrganizationClient;
 import com.workora.work.client.ProjectClient;
 import com.workora.work.client.ProjectContext;
+import com.workora.work.client.CallerMembership;
 import com.workora.work.entity.Task;
+import com.workora.work.entity.TaskStatus;
 import com.workora.work.exception.ForbiddenException;
 import com.workora.work.exception.NotFoundException;
 import com.workora.work.repository.TaskAssigneeRepository;
@@ -13,9 +15,8 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * Centralizes resource-level authorization for the Work domain. Tasks are private
- * work items: only the project manager, company owner/admin, or an active assignee
- * may see or act on them.
+ * Centralizes task access checks and delegates company membership decisions to
+ * the Organization service.
  */
 @Component
 public class WorkAuthorization {
@@ -33,14 +34,24 @@ public class WorkAuthorization {
     }
 
     public boolean canManageInContext(ProjectContext context, CurrentUser caller) {
-        if (context.projectManagerId() != null && context.projectManagerId().equals(caller.userId())) {
-            return true;
-        }
         try {
-            return organizationClient.myMembership(context.companyId()).isOwnerOrAdmin();
+            var membership = organizationClient.myMembership(context.companyId());
+            return canManageInContext(context, caller, membership);
         } catch (ForbiddenException | NotFoundException ex) {
             return false;
         }
+    }
+
+    public CallerMembership requireCompanyMember(UUID companyId) {
+        return organizationClient.myMembership(companyId);
+    }
+
+    public boolean canManageInContext(
+            ProjectContext context, CurrentUser caller, CallerMembership membership) {
+        return membership.isOwnerOrAdmin()
+                || (membership.isProjectManagerOf(context.departmentId())
+                && context.projectManagerId() != null
+                && context.projectManagerId().equals(caller.userId()));
     }
 
     public void requireCanCreateTask(ProjectContext context, CurrentUser caller) {
@@ -52,19 +63,18 @@ public class WorkAuthorization {
     }
 
     public boolean canManage(Task task, CurrentUser caller) {
-        UUID managerId = task.getProjectManagerId();
-        if (managerId == null) {
-            try {
-                managerId = projectClient.resolvePhase(task.getPhaseId()).projectManagerId();
-            } catch (ForbiddenException | NotFoundException ex) {
-                managerId = null;
-            }
-        }
-        if (managerId != null && managerId.equals(caller.userId())) {
-            return true;
-        }
         try {
-            return organizationClient.myMembership(task.getCompanyId()).isOwnerOrAdmin();
+            var membership = organizationClient.myMembership(task.getCompanyId());
+            if (membership.isOwnerOrAdmin()) {
+                return true;
+            }
+            if (!membership.isProjectManagerOf(task.getDepartmentId())) {
+                return false;
+            }
+            ProjectContext context = projectClient.resolvePhase(task.getPhaseId());
+            return membership.isProjectManagerOf(context.departmentId())
+                    && context.projectManagerId() != null
+                    && context.projectManagerId().equals(caller.userId());
         } catch (ForbiddenException | NotFoundException ex) {
             return false;
         }
@@ -79,13 +89,30 @@ public class WorkAuthorization {
     }
 
     public boolean canView(Task task, CurrentUser caller) {
-        return canManage(task, caller)
-                || taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(task.getId(), caller.userId());
+        try {
+            var membership = organizationClient.myMembership(task.getCompanyId());
+            return canView(task, caller, membership);
+        } catch (ForbiddenException | NotFoundException ex) {
+            return false;
+        }
+    }
+
+    public boolean canView(
+            Task task, CurrentUser caller, CallerMembership membership) {
+        if (membership.isOwnerOrAdmin()) {
+            return true;
+        }
+        if (membership.isProjectManagerOf(task.getDepartmentId())) {
+            ProjectContext context = projectClient.resolvePhase(task.getPhaseId());
+            if (canManageInContext(context, caller, membership)) {
+                return true;
+            }
+        }
+        return taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(
+                task.getId(), caller.userId());
     }
 
     public void requireCanViewTask(Task task, CurrentUser caller) {
-        // Tasks are private: an unauthorized caller gets 404 rather than 403 so
-        // the existence of the task is not leaked.
         if (!canView(task, caller)) {
             throw new NotFoundException("Task not found");
         }
@@ -96,6 +123,34 @@ public class WorkAuthorization {
             throw new ForbiddenException(
                     "Only an active assignee of this task can perform this action",
                     "NOT_TASK_ASSIGNEE");
+        }
+    }
+
+    public void requireEligibleAssignee(Task task, UUID assigneeId) {
+        var candidate = organizationClient.member(task.getCompanyId(), assigneeId);
+        if (!candidate.isDeveloperOrTesterIn(task.getDepartmentId())) {
+            throw new ForbiddenException(
+                    "Task assignees must be an active Developer or Tester in the task department",
+                    "TASK_ASSIGNEE_NOT_ELIGIBLE");
+        }
+    }
+
+    public void requireCanChangeStatus(Task task, CurrentUser caller, TaskStatus target) {
+        if (canManage(task, caller)) {
+            return;
+        }
+        requireActiveAssignee(task, caller);
+        String role = organizationClient.member(task.getCompanyId(), caller.userId())
+                .roleIn(task.getDepartmentId());
+        boolean developerTransition = "DEVELOPER".equals(role)
+                && (target == TaskStatus.IN_PROGRESS || target == TaskStatus.SUBMITTED);
+        boolean testerTransition = "TESTER".equals(role)
+                && task.getStatus() == TaskStatus.SUBMITTED
+                && (target == TaskStatus.ACCEPTED || target == TaskStatus.CHANGES_REQUESTED);
+        if (!developerTransition && !testerTransition) {
+            throw new ForbiddenException(
+                    "Your company role cannot make this task status change",
+                    "TASK_STATUS_CHANGE_DENIED");
         }
     }
 }
