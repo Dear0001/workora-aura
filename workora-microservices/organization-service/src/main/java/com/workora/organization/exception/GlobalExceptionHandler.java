@@ -1,10 +1,13 @@
 package com.workora.organization.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.workora.common.dto.ApiResponse;
+import com.workora.organization.entity.CompanyRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +53,17 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 new ApiResponse<>(false, "Validation failed", errors, java.time.Instant.now()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableRequest(HttpMessageNotReadableException ex) {
+        String message = "Invalid request body";
+        Throwable cause = ex.getMostSpecificCause();
+        if (cause instanceof InvalidFormatException invalidFormat
+                && invalidFormat.getTargetType() == CompanyRole.class) {
+            message = "Invalid invitation role. Choose Project Manager, Developer, Tester, Bug Hunter, or Admin.";
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.failure(message));
     }
 
     @ExceptionHandler(Exception.class)

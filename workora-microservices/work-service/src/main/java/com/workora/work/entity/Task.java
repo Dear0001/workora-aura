@@ -62,6 +62,8 @@ public class Task {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    private Instant archivedAt;
+
     protected Task() {
     }
 
@@ -178,5 +180,17 @@ public class Task {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Instant getArchivedAt() {
+        return archivedAt;
+    }
+
+    public boolean isArchived() {
+        return archivedAt != null;
+    }
+
+    public void setArchivedAt(Instant archivedAt) {
+        this.archivedAt = archivedAt;
     }
 }

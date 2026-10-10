@@ -34,7 +34,10 @@ class AdminAccessRequestServiceTest {
 
     @Test
     void creatingRequestProvisionsOnlyRegularAccountBeforeApproval() {
+        UUID keycloakUserId = UUID.randomUUID();
         when(userRepository.findByEmail("new-admin@example.com")).thenReturn(Optional.empty());
+        when(keycloakService.createAdminCandidate("new-admin@example.com", "New", "Admin"))
+                .thenReturn(keycloakUserId);
         when(passwordEncoder.encode(any())).thenReturn("encoded");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(requestRepository.save(any(AdminAccessRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -44,7 +47,9 @@ class AdminAccessRequestServiceTest {
         verify(keycloakService).createAdminCandidate("new-admin@example.com", "New", "Admin");
         assertThat(request.getStatus()).isEqualTo(AdminAccessRequestStatus.PENDING);
         assertThat(request.getEmail()).isEqualTo("new-admin@example.com");
-        verify(userRepository).save(argThat(user -> user.getRole() == Role.USER && !user.isEmailVerified()));
+        verify(userRepository).save(argThat(user -> user.getRole() == Role.USER
+                && !user.isEmailVerified()
+                && keycloakUserId.equals(user.getKeycloakUserId())));
         verify(keycloakService, never()).setRealmAdminRole(anyString(), eq(true));
     }
 

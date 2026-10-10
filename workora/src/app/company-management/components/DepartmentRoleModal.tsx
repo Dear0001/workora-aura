@@ -130,9 +130,9 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-2xl max-h-[90vh] flex flex-col fade-scale-in">
+      <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-modal fade-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -161,7 +161,7 @@ export default function DepartmentRoleModal({ department, companyId, onClose }: 
               placeholder="Search members…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-base pl-8 text-sm"
+              className="input-base input-search text-sm"
             />
           </div>
         </div>

@@ -63,6 +63,9 @@ public class WorkAuthorization {
     }
 
     public boolean canManage(Task task, CurrentUser caller) {
+        if (task.isArchived()) {
+            return false;
+        }
         try {
             var membership = organizationClient.myMembership(task.getCompanyId());
             if (membership.isOwnerOrAdmin()) {
@@ -88,7 +91,19 @@ public class WorkAuthorization {
         }
     }
 
+    public void requireCanArchiveTask(Task task) {
+        var membership = organizationClient.myMembership(task.getCompanyId());
+        if (!membership.isOwnerOrAdmin()) {
+            throw new ForbiddenException(
+                    "Only a company owner or administrator can archive a task",
+                    "TASK_ARCHIVE_DENIED");
+        }
+    }
+
     public boolean canView(Task task, CurrentUser caller) {
+        if (task.isArchived()) {
+            return false;
+        }
         try {
             var membership = organizationClient.myMembership(task.getCompanyId());
             return canView(task, caller, membership);
@@ -127,6 +142,11 @@ public class WorkAuthorization {
     }
 
     public void requireEligibleAssignee(Task task, UUID assigneeId) {
+        if (task.getCreatedBy().equals(assigneeId)) {
+            throw new ForbiddenException(
+                    "You cannot assign a task you created to yourself. Please select another eligible member.",
+                    "TASK_CREATOR_SELF_ASSIGNMENT_DENIED");
+        }
         var candidate = organizationClient.member(task.getCompanyId(), assigneeId);
         if (!candidate.isDeveloperOrTesterIn(task.getDepartmentId())) {
             throw new ForbiddenException(

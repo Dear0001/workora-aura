@@ -5,12 +5,21 @@ import { X, Loader2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { organizationApi } from '@/lib/api/organization';
 import { AxiosError } from 'axios';
+import type { InviteableCompanyRole } from '@/lib/api/types';
 
 interface InviteFormData {
   email: string;
-  role: 'ADMIN' | 'MANAGER' | 'MEMBER';
+  role: InviteableCompanyRole | '';
   message: string;
 }
+
+const INVITABLE_ROLES: { value: InviteableCompanyRole; label: string }[] = [
+  { value: 'PROJECT_MANAGER', label: 'Project Manager' },
+  { value: 'DEVELOPER', label: 'Developer' },
+  { value: 'BUG_HUNTER', label: 'Bug Hunter' },
+  { value: 'TESTER', label: 'Tester' },
+  { value: 'ADMIN', label: 'Admin' },
+];
 
 interface Props {
   onClose: () => void;
@@ -23,13 +32,17 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<InviteFormData>({
-    defaultValues: { email: '', role: 'MEMBER', message: '' },
+    defaultValues: { email: '', role: '', message: '' },
   });
 
   const onSubmit = async (data: InviteFormData) => {
     if (!companyId) {
       toast.error('Select a company before sending an invitation.');
       onClose();
+      return;
+    }
+    if (!data.role) {
+      toast.error('Choose a company role before sending the invitation.');
       return;
     }
 
@@ -39,24 +52,26 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
         role: data.role,
         message: data.message || undefined,
       });
-      toast.success(`Invitation sent to ${data.email}`);
+      toast.success(`Invitation created for ${data.email}`);
       onClose();
     } catch (err: unknown) {
       let message = 'Failed to send invitation. Please try again.';
       if (err instanceof AxiosError) {
         const apiMsg = err.response?.data?.message;
         if (apiMsg) message = apiMsg;
-        else if (err.response?.status === 409) message = 'This user is already a member or has a pending invitation.';
-        else if (!err.response) message = 'Cannot reach the server. Make sure the backend is running on localhost:8080.';
+        else if (err.response?.status === 409)
+          message = 'This user is already a member or has a pending invitation.';
+        else if (!err.response)
+          message = 'Cannot reach the server. Make sure the backend is running on localhost:8080.';
       }
       toast.error(message);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-md fade-scale-in">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
@@ -65,7 +80,9 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
             </div>
             <div>
               <h2 className="text-base font-bold text-foreground">Invite Team Member</h2>
-              <p className="text-xs text-muted-foreground">Send an invitation to join your company</p>
+              <p className="text-xs text-muted-foreground">
+                Send an invitation to join your company
+              </p>
             </div>
           </div>
           <button
@@ -82,7 +99,9 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
             <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="inv-email">
               Email address
             </label>
-            <p className="text-xs text-muted-foreground mb-1.5">The invitation will be sent to this email</p>
+            <p className="text-xs text-muted-foreground mb-1.5">
+              Create a pending invitation for this email address.
+            </p>
             <input
               id="inv-email"
               type="email"
@@ -90,7 +109,10 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
               className={`input-base ${errors.email ? 'input-error' : ''}`}
               {...register('email', {
                 required: 'Email is required',
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address' },
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email address',
+                },
               })}
             />
             {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
@@ -102,17 +124,32 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
             </label>
             <select
               id="inv-role"
-              className="input-base"
-              {...register('role', { required: true })}
+              className={`input-base ${errors.role ? 'input-error' : ''}`}
+              aria-invalid={Boolean(errors.role)}
+              aria-describedby={errors.role ? 'inv-role-error' : undefined}
+              {...register('role', { required: 'Choose a role for this invitation' })}
             >
-              <option value="MEMBER">Member</option>
-              <option value="MANAGER">Manager</option>
-              <option value="ADMIN">Admin</option>
+              <option value="" disabled>
+                Select a role
+              </option>
+              {INVITABLE_ROLES.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
             </select>
+            {errors.role && (
+              <p id="inv-role-error" className="mt-1 text-xs text-red-500">
+                {errors.role.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="inv-message">
+            <label
+              className="block text-sm font-medium text-foreground mb-1.5"
+              htmlFor="inv-message"
+            >
               Personal message <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <textarea
@@ -140,9 +177,15 @@ export default function InviteMemberModal({ onClose, companyId }: Props) {
               style={{ minHeight: '42px' }}
             >
               {isSubmitting ? (
-                <><Loader2 size={14} className="animate-spin" /><span>Sending…</span></>
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Sending…</span>
+                </>
               ) : (
-                <><UserPlus size={14} /><span>Send Invitation</span></>
+                <>
+                  <UserPlus size={14} />
+                  <span>Send Invitation</span>
+                </>
               )}
             </button>
           </div>

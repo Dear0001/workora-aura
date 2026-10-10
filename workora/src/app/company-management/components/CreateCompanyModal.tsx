@@ -45,20 +45,40 @@ export default function CreateCompanyModal({ onClose, onCreated }: Props) {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const [profile, cover] = await Promise.all([
+      const [profileUpload, coverUpload] = await Promise.allSettled([
         profileFile ? storageApi.createUpload(profileFile) : Promise.resolve(null),
         coverFile ? storageApi.createUpload(coverFile) : Promise.resolve(null),
       ]);
-      const res = await organizationApi.createCompany({
+
+      const payload: Partial<Company> = {
         name: data.name,
         description: data.description || undefined,
         contactEmail: data.contactEmail || undefined,
         contactPhone: data.contactPhone || undefined,
         address: data.address || undefined,
-        profileImageUrl: profile?.data.key,
-        coverImageUrl: cover?.data.key,
-      });
-      toast.success(`Company "${res.data.name}" created`);
+      };
+
+      if (profileFile) {
+        payload.profileImageUrl =
+          profileUpload.status === 'fulfilled' && profileUpload.value
+            ? profileUpload.value.data.key
+            : undefined;
+      }
+
+      if (coverFile) {
+        payload.coverImageUrl =
+          coverUpload.status === 'fulfilled' && coverUpload.value
+            ? coverUpload.value.data.key
+            : undefined;
+      }
+
+      const res = await organizationApi.createCompany(payload);
+
+      if (profileUpload.status === 'rejected' || coverUpload.status === 'rejected') {
+        toast.warning('Company created, but one image could not be uploaded and was left out.');
+      } else {
+        toast.success(`Company "${res.data.name}" created`);
+      }
       onCreated(res.data);
     } catch (err) {
       const msg = err instanceof AxiosError
@@ -74,9 +94,9 @@ export default function CreateCompanyModal({ onClose, onCreated }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-lg fade-scale-in">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">

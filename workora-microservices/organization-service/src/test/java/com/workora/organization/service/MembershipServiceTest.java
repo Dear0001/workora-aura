@@ -1,6 +1,8 @@
 package com.workora.organization.service;
 
 import com.workora.organization.dto.ChangeRoleRequest;
+import com.workora.organization.dto.DepartmentRoleAssignmentResponse;
+import com.workora.organization.dto.MemberResponse;
 import com.workora.organization.entity.CompanyRole;
 import com.workora.organization.entity.Department;
 import com.workora.organization.entity.DepartmentMembership;
@@ -8,6 +10,7 @@ import com.workora.organization.entity.DepartmentRole;
 import com.workora.organization.entity.Membership;
 import com.workora.organization.entity.MembershipStatus;
 import com.workora.organization.exception.ForbiddenException;
+import com.workora.organization.exception.NotFoundException;
 import com.workora.organization.mapper.OrganizationMapper;
 import com.workora.organization.repository.DepartmentRepository;
 import com.workora.organization.repository.DepartmentMembershipRepository;
@@ -114,6 +117,93 @@ class MembershipServiceTest {
     }
 
     @Test
+    void requireCanViewDepartment_rejectsMemberOutsideAssignedScope() {
+        UUID otherDepartmentId = UUID.randomUUID();
+        Membership actor = membership(actorId, CompanyRole.DEVELOPER);
+        ReflectionTestUtils.setField(actor, "id", UUID.randomUUID());
+        service = new MembershipService(
+                membershipRepository, departmentRepository, departmentMembershipRepository,
+                null, null, mapper, null);
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(actor));
+        when(departmentMembershipRepository.existsByMembership_IdAndDepartmentId(
+                actor.getId(), otherDepartmentId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.requireCanViewDepartment(companyId, otherDepartmentId, actorId))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting(error -> ((ForbiddenException) error).getCode())
+                .isEqualTo("DEPARTMENT_SCOPE_DENIED");
+        verify(departmentMembershipRepository).existsByMembership_IdAndDepartmentId(
+                actor.getId(), otherDepartmentId);
+    }
+
+    @Test
+    void requireCanViewDepartment_allowsAssignedDepartmentRole() {
+        UUID assignedDepartmentId = UUID.randomUUID();
+        Membership actor = membership(actorId, CompanyRole.DEVELOPER);
+        ReflectionTestUtils.setField(actor, "id", UUID.randomUUID());
+        service = new MembershipService(
+                membershipRepository, departmentRepository, departmentMembershipRepository,
+                null, null, mapper, null);
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(actor));
+        when(departmentMembershipRepository.existsByMembership_IdAndDepartmentId(
+                actor.getId(), assignedDepartmentId)).thenReturn(true);
+
+        service.requireCanViewDepartment(companyId, assignedDepartmentId, actorId);
+    }
+
+    @Test
+    void listMembers_limitsNonAdminToMembersSharingTheirDepartment() {
+        UUID departmentId = UUID.randomUUID();
+        UUID otherDepartmentId = UUID.randomUUID();
+        Membership actor = new Membership(companyId, actorId, "actor@workora.test",
+                CompanyRole.PROJECT_MANAGER, departmentId, actorId);
+        Membership visibleMember = new Membership(companyId, targetId, "visible@workora.test",
+                CompanyRole.DEVELOPER, departmentId, actorId);
+        Membership hiddenMember = new Membership(companyId, UUID.randomUUID(), "hidden@workora.test",
+                CompanyRole.TESTER, otherDepartmentId, actorId);
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(actor));
+        when(membershipRepository.findByCompanyIdAndStatusAndRoleNotOrderByCreatedAtAsc(
+                companyId, MembershipStatus.ACTIVE, CompanyRole.OWNER))
+                .thenReturn(List.of(visibleMember, hiddenMember));
+        when(mapper.toResponse(visibleMember)).thenReturn(new MemberResponse(
+                null, targetId, "visible@workora.test", CompanyRole.DEVELOPER, departmentId,
+                List.of(new DepartmentRoleAssignmentResponse(departmentId, DepartmentRole.DEVELOPER),
+                        new DepartmentRoleAssignmentResponse(otherDepartmentId, DepartmentRole.TESTER)),
+                MembershipStatus.ACTIVE, null));
+
+        List<MemberResponse> responses = service.listMembers(companyId, actorId);
+
+        verify(mapper).toResponse(visibleMember);
+        verify(mapper, never()).toResponse(hiddenMember);
+        assertThat(responses).singleElement().satisfies(response -> {
+            assertThat(response.departmentId()).isEqualTo(departmentId);
+            assertThat(response.departmentMemberships())
+                    .extracting(DepartmentRoleAssignmentResponse::departmentId)
+                    .containsExactly(departmentId);
+        });
+    }
+
+    @Test
+    void getMember_hidesMembersOutsideCallerDepartment() {
+        UUID departmentId = UUID.randomUUID();
+        Membership actor = new Membership(companyId, actorId, "actor@workora.test",
+                CompanyRole.PROJECT_MANAGER, departmentId, actorId);
+        Membership target = new Membership(companyId, targetId, "target@workora.test",
+                CompanyRole.DEVELOPER, UUID.randomUUID(), actorId);
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(actor));
+        when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, targetId, MembershipStatus.ACTIVE))
+                .thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> service.getMember(companyId, targetId, actorId))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Member not found in this company");
+    }
+
+    @Test
     void listMembers_excludesOwnersFromUnfilteredResults() {
         when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
                 .thenReturn(Optional.of(membership(actorId, CompanyRole.ADMIN)));
@@ -202,12 +292,19 @@ class MembershipServiceTest {
 
     @Test
     void getMember_requiresActiveCallerMembershipAndFindsTargetInSameCompany() {
-        Membership caller = membership(actorId, CompanyRole.DEVELOPER);
-        Membership target = membership(targetId, CompanyRole.TESTER);
+        UUID departmentId = UUID.randomUUID();
+        Membership caller = new Membership(companyId, actorId, "actor@workora.test",
+                CompanyRole.DEVELOPER, departmentId, actorId);
+        Membership target = new Membership(companyId, targetId, "target@workora.test",
+                CompanyRole.TESTER, departmentId, actorId);
         when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, actorId, MembershipStatus.ACTIVE))
                 .thenReturn(Optional.of(caller));
         when(membershipRepository.findByCompanyIdAndUserIdAndStatus(companyId, targetId, MembershipStatus.ACTIVE))
                 .thenReturn(Optional.of(target));
+        when(mapper.toResponse(target)).thenReturn(new MemberResponse(
+                null, targetId, "target@workora.test", CompanyRole.TESTER, departmentId,
+                List.of(new DepartmentRoleAssignmentResponse(departmentId, DepartmentRole.TESTER)),
+                MembershipStatus.ACTIVE, null));
 
         service.getMember(companyId, targetId, actorId);
 

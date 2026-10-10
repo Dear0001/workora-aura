@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 import EmailVerificationNotice from './EmailVerificationNotice';
@@ -7,6 +7,7 @@ import ForgotPasswordForm from './ForgotPasswordForm';
 
 import AppLogo from '@/components/ui/AppLogo';
 import { CheckCircle, Users, Zap, Shield } from 'lucide-react';
+import { notifyEmailVerificationComplete } from '@/lib/email-verification-channel';
 
 type AuthView = 'login' | 'register' | 'verify-email' | 'forgot-password';
 
@@ -19,8 +20,19 @@ const FEATURES = [
 
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>('login');
+  const [emailVerified, setEmailVerified] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [verificationSessionToken, setVerificationSessionToken] = useState<string | undefined>();
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('status') === 'verified') {
+      notifyEmailVerificationComplete();
+      setEmailVerified(true);
+      url.searchParams.delete('status');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, []);
 
   const handleRegistrationSuccess = (email: string, sessionToken?: string) => {
     setRegisteredEmail(email);
@@ -33,6 +45,7 @@ export default function AuthPage() {
   };
 
   const handleVerified = () => {
+    setEmailVerified(true);
     setView('login');
   };
 
@@ -102,7 +115,23 @@ export default function AuthPage() {
             <span className="font-bold text-lg text-foreground">Workora</span>
           </div>
 
-          {view === 'verify-email' ? (
+          {emailVerified ? (
+            <div className="fade-scale-in text-center" role="status" aria-live="polite">
+              <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <CheckCircle size={28} className="text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Email verified</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                Your email address is verified. Continue to sign in to your Workora account.
+              </p>
+              <button
+                onClick={() => setEmailVerified(false)}
+                className="btn-primary w-full py-2.5 rounded-lg font-semibold text-sm"
+              >
+                Continue to sign in
+              </button>
+            </div>
+          ) : view === 'verify-email' ? (
             <EmailVerificationNotice
               email={registeredEmail}
               verificationSessionToken={verificationSessionToken}

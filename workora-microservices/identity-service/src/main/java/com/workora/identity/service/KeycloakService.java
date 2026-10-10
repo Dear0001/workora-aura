@@ -4,6 +4,7 @@ import com.workora.identity.dto.LoginRequest;
 import com.workora.identity.dto.RefreshTokenRequest;
 import com.workora.identity.dto.RegisterRequest;
 import com.workora.identity.exception.AppException;
+import com.workora.identity.exception.KeycloakIdentityAlreadyExistsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class KeycloakService {
@@ -48,7 +50,7 @@ public class KeycloakService {
         this.adminPassword = adminPassword;
     }
 
-    public void register(RegisterRequest request) {
+    public UUID register(RegisterRequest request) {
         final String adminToken = adminToken();
         URI location = null;
         try {
@@ -64,6 +66,7 @@ public class KeycloakService {
                             "enabled", true,
                             "emailVerified", false,
                             "realmRoles", new String[]{"USER"},
+                            "requiredActions", new String[]{"VERIFY_EMAIL"},
                             "credentials", new Object[]{
                                     Map.of("type", "password", "value", request.password(), "temporary", false)
                             }
@@ -71,14 +74,34 @@ public class KeycloakService {
                     .retrieve()
                     .toBodilessEntity();
             location = created.getHeaders().getLocation();
-            sendVerificationEmail(request.email(), adminToken);
+            UUID keycloakUserId = userIdFromLocation(location);
+            sendVerificationEmail(keycloakUserId, adminToken);
+            return keycloakUserId;
         } catch (RestClientResponseException ex) {
             deleteCreatedUser(location, adminToken);
+            String response = ex.getResponseBodyAsString().toLowerCase();
+            if (ex.getStatusCode().value() == 409
+                    && (response.contains("same email") || response.contains("same username"))) {
+                throw new KeycloakIdentityAlreadyExistsException();
+            }
             throw new AppException(keycloakError("registration or verification email", ex));
         } catch (RestClientException ex) {
             deleteCreatedUser(location, adminToken);
             log.error("Keycloak is unavailable during registration", ex);
             throw new AppException("Keycloak is unavailable. Start Keycloak and verify KEYCLOAK_BASE_URL.");
+        }
+    }
+
+    private UUID userIdFromLocation(URI location) {
+        if (location == null) {
+            throw new AppException("Keycloak did not return the created account identifier.");
+        }
+        String path = location.getPath();
+        String id = path.substring(path.lastIndexOf('/') + 1);
+        try {
+            return UUID.fromString(id);
+        } catch (IllegalArgumentException exception) {
+            throw new AppException("Keycloak returned an invalid account identifier.");
         }
     }
 
@@ -160,7 +183,7 @@ public class KeycloakService {
         request.retrieve().toBodilessEntity();
     }
 
-    public void createAdminCandidate(String email, String firstName, String lastName) {
+    public UUID createAdminCandidate(String email, String firstName, String lastName) {
         String token = adminToken();
         URI location = null;
         try {
@@ -180,10 +203,7 @@ public class KeycloakService {
                     .retrieve()
                     .toBodilessEntity();
             location = created.getHeaders().getLocation();
-            if (location == null) {
-                throw new AppException("Keycloak did not return the created account location.");
-            }
-            String userId = location.getPath().substring(location.getPath().lastIndexOf('/') + 1);
+            UUID userId = userIdFromLocation(location);
             client.put()
                     .uri(uriBuilder -> uriBuilder
                             .path("/admin/realms/{realm}/users/{id}/execute-actions-email")
@@ -195,6 +215,7 @@ public class KeycloakService {
                     .body(new String[]{"VERIFY_EMAIL", "UPDATE_PASSWORD"})
                     .retrieve()
                     .toBodilessEntity();
+            return userId;
         } catch (RestClientResponseException exception) {
             deleteCreatedUser(location, token);
             throw new AppException(keycloakError("admin account invitation", exception));
@@ -210,46 +231,50 @@ public class KeycloakService {
     }
 
     public void resendVerificationEmail(String email) {
-        Map<String, Object> user = findUser(email, adminToken());
+        String token = adminToken();
+        Map<String, Object> user = findUser(email, token);
         if (user == null) {
             // Deliberately do nothing: callers must not be able to discover
             // whether an email is registered.
             return;
         }
-        sendVerificationEmail(email, adminToken());
+        if (Boolean.TRUE.equals(user.get("emailVerified"))) {
+            return;
+        }
+        sendVerificationEmail(UUID.fromString((String) user.get("id")), token);
     }
 
-    public boolean isEmailVerified(String email) {
-        Map<String, Object>[] users = client.get()
+    public void sendVerificationEmail(UUID userId) {
+        sendVerificationEmail(userId, adminToken());
+    }
+
+    public boolean isEmailVerified(UUID userId) {
+        Map<String, Object> user = findUser(userId);
+        return user != null && Boolean.TRUE.equals(user.get("emailVerified"));
+    }
+
+    public boolean isEmailVerifiedByEmail(String email) {
+        Map<String, Object> user = findUser(email, adminToken());
+        return user != null && Boolean.TRUE.equals(user.get("emailVerified"));
+    }
+
+    private Map<String, Object> findUser(UUID userId) {
+        return client.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/admin/realms/{realm}/users")
-                        .queryParam("username", email.trim().toLowerCase())
-                        .build(realm))
+                        .path("/admin/realms/{realm}/users/{id}")
+                        .build(realm, userId))
                 .headers(headers -> headers.setBearerAuth(adminToken()))
                 .retrieve()
-                .body(Map[].class);
-        return users != null && users.length > 0 && Boolean.TRUE.equals(users[0].get("emailVerified"));
+                .body(Map.class);
     }
 
-    private void sendVerificationEmail(String email, String adminToken) {
-        Map<String, Object>[] users = client.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/admin/realms/{realm}/users")
-                        .queryParam("username", email.trim().toLowerCase())
-                        .build(realm))
-                .headers(headers -> headers.setBearerAuth(adminToken))
-                .retrieve()
-                .body(Map[].class);
-        if (users == null || users.length == 0) {
-            throw new IllegalStateException("Keycloak user was not found for email verification");
-        }
-
+    private void sendVerificationEmail(UUID userId, String adminToken) {
         client.put()
                 .uri(uriBuilder -> uriBuilder
                         .path("/admin/realms/{realm}/users/{id}/send-verify-email")
                         .queryParam("client_id", clientId)
-                        .queryParam("redirect_uri", frontendUrl + "/login?status=verified")
-                        .build(realm, users[0].get("id")))
+                        .queryParam("redirect_uri", frontendUrl.replaceAll("/+$", "") + "/?status=verified")
+                        .build(realm, userId))
                 .headers(headers -> headers.setBearerAuth(adminToken))
                 .retrieve()
                 .toBodilessEntity();
@@ -278,12 +303,20 @@ public class KeycloakService {
         Map<String, Object>[] users = client.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/admin/realms/{realm}/users")
-                        .queryParam("username", email.trim().toLowerCase())
+                        .queryParam("email", email.trim().toLowerCase())
+                        .queryParam("exact", true)
                         .build(realm))
                 .headers(headers -> headers.setBearerAuth(adminToken))
                 .retrieve()
                 .body(Map[].class);
-        return users == null || users.length == 0 ? null : users[0];
+        if (users == null) return null;
+        for (Map<String, Object> user : users) {
+            Object candidateEmail = user.get("email");
+            if (candidateEmail instanceof String value && value.equalsIgnoreCase(email.trim())) {
+                return user;
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> tokenRequest(MultiValueMap<String, String> form) {

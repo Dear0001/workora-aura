@@ -1,5 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import {
   ArrowLeft,
   CheckSquare,
@@ -19,6 +20,7 @@ import {
   UserMinus,
   X,
   Upload,
+  Download,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -28,6 +30,7 @@ import { projectsApi, type Phase } from '@/lib/api/projects';
 import { organizationApi } from '@/lib/api/organization';
 import { identityApi } from '@/lib/api/identity';
 import type { CompanyMember } from '@/lib/api/types';
+import { getTaskFileValidationError, TASK_FILE_ACCEPT } from '@/lib/task-files';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-muted text-muted-foreground border border-border',
@@ -84,6 +87,7 @@ export default function TaskDetailContent({ taskId }: Props) {
   const [eligibleMembers, setEligibleMembers] = useState<CompanyMember[]>([]);
   const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
   const [canManageTask, setCanManageTask] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
@@ -95,6 +99,7 @@ export default function TaskDetailContent({ taskId }: Props) {
   const [submitFiles, setSubmitFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -146,6 +151,7 @@ export default function TaskDetailContent({ taskId }: Props) {
       organizationApi.listDepartmentMembers(departmentId),
     ]).then(async ([membershipResponse, profileResponse, membersResponse]) => {
       if (cancelled) return;
+      setCurrentUserId(profileResponse.data.id);
       const role = membershipResponse.data.role;
       const departmentRole = membershipResponse.data.departmentMemberships
         ?.find(assignment => assignment.departmentId === departmentId)?.role;
@@ -204,7 +210,11 @@ export default function TaskDetailContent({ taskId }: Props) {
 
   const addFiles = (files: FileList | null) => {
     if (!files) return;
-    const arr = Array.from(files);
+    const arr = Array.from(files).filter(file => {
+      const error = getTaskFileValidationError(file);
+      if (error) toast.error(`${file.name}: ${error}`);
+      return !error;
+    });
     setSubmitFiles(prev => {
       const existing = new Set(prev.map(f => f.name));
       return [...prev, ...arr.filter(f => !existing.has(f.name))];
@@ -228,18 +238,28 @@ export default function TaskDetailContent({ taskId }: Props) {
         setSubmissions(prev => [subRes.data, ...prev]);
       }
 
-      // 2. Upload attachments
+      // 2. Upload files and link them to the task.
+      let failedFiles: File[] = [];
       if (submitFiles.length > 0) {
         setUploadingFiles(true);
         for (const file of submitFiles) {
-          const fd = new FormData();
-          fd.append('file', file);
-          const attRes = await workApi.uploadAttachment(taskId, fd);
-          setAttachments(prev => [attRes.data, ...prev]);
+          try {
+            const attachment = await workApi.uploadTaskFile(taskId, file);
+            setAttachments(prev => [attachment.data, ...prev]);
+          } catch {
+            failedFiles = [...failedFiles, file];
+          }
         }
         setUploadingFiles(false);
       }
 
+      if (failedFiles.length > 0) {
+        toast.success('Work note submitted');
+        toast.error(`Could not upload: ${failedFiles.map(file => file.name).join(', ')}. The failed files remain selected so you can retry.`);
+        setSubmitContent('');
+        setSubmitFiles(failedFiles);
+        return;
+      }
       toast.success('Work submitted successfully');
       setSubmitContent('');
       setSubmitFiles([]);
@@ -252,6 +272,8 @@ export default function TaskDetailContent({ taskId }: Props) {
   };
 
   const handleRemoveAttachment = async (attachmentId: string) => {
+    const attachment = attachments.find(item => item.id === attachmentId);
+    if (!attachment) return;
     try {
       await workApi.removeAttachment(taskId, attachmentId);
       setAttachments(prev => prev.filter(a => a.id !== attachmentId));
@@ -263,8 +285,36 @@ export default function TaskDetailContent({ taskId }: Props) {
     }
   };
 
+  const handleDownloadAttachment = async (attachment: TaskAttachment) => {
+    const downloadWindow = window.open('about:blank', '_blank');
+    if (!downloadWindow) {
+      toast.error('Allow pop-ups to open the attachment');
+      return;
+    }
+    setDownloadingAttachmentId(attachment.id);
+    try {
+      const response = await workApi.getAttachmentDownloadUrl(taskId, attachment.id);
+      downloadWindow.location.href = response.data.downloadUrl;
+    } catch (err) {
+      downloadWindow.close();
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? 'Failed to open attachment')
+        : 'Failed to open attachment');
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  };
+
   const handleAssignMember = async () => {
     if (!task || !selectedAssigneeId) return;
+    if (selectedAssigneeId === task.createdBy) {
+      toast.error('You cannot assign a task you created to yourself. Please select another eligible member.');
+      return;
+    }
+    if (!eligibleMembers.some(member =>
+      member.userId === selectedAssigneeId && member.userId !== task.createdBy
+        && !assignees.some(assignee => assignee.userId === member.userId)
+    )) return;
     setAssigning(true);
     try {
       const response = await workApi.assignUser(task.id, { userId: selectedAssigneeId });
@@ -402,33 +452,33 @@ export default function TaskDetailContent({ taskId }: Props) {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Change Status</p>
-                  <div className="relative">
-                    <button
-                      onClick={() => setStatusMenuOpen(v => !v)}
-                      disabled={updatingStatus}
-                      className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors disabled:opacity-60"
-                    >
-                      {updatingStatus ? <Loader2 size={12} className="animate-spin" /> : null}
-                      {currentStatus.replace(/_/g, ' ')}
-                      <ChevronDown size={13} />
-                    </button>
-                    {statusMenuOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setStatusMenuOpen(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-40 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                          {getAllowedTaskTransitions(currentStatus).map(s => (
-                            <button
-                              key={s}
-                              onClick={() => handleStatusChange(s)}
-                              className={`flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors ${currentStatus === s ? 'text-primary font-semibold' : 'text-foreground'}`}
-                            >
-                              {s.replace(/_/g, ' ')}
-                            </button>
-                          ))}
-                        </div>
-                      </>
+                  <FloatingMenu
+                    open={statusMenuOpen}
+                    onOpenChange={setStatusMenuOpen}
+                    align="start"
+                    widthClassName="w-40"
+                    trigger={(triggerProps) => (
+                      <button
+                        {...triggerProps}
+                        disabled={updatingStatus}
+                        className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors disabled:opacity-60"
+                      >
+                        {updatingStatus ? <Loader2 size={12} className="animate-spin" /> : null}
+                        {currentStatus.replace(/_/g, ' ')}
+                        <ChevronDown size={13} />
+                      </button>
                     )}
-                  </div>
+                  >
+                    {getAllowedTaskTransitions(currentStatus).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => handleStatusChange(s)}
+                        className={`flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors ${currentStatus === s ? 'text-primary font-semibold' : 'text-foreground'}`}
+                      >
+                        {s.replace(/_/g, ' ')}
+                      </button>
+                    ))}
+                  </FloatingMenu>
                 </div>
               </div>
             </div>
@@ -465,8 +515,12 @@ export default function TaskDetailContent({ taskId }: Props) {
                   ref={fileInputRef}
                   type="file"
                   multiple
+                  accept={TASK_FILE_ACCEPT}
                   className="hidden"
-                  onChange={e => addFiles(e.target.files)}
+                  onChange={e => {
+                    addFiles(e.target.files);
+                    e.target.value = '';
+                  }}
                 />
               </div>
 
@@ -577,12 +631,28 @@ export default function TaskDetailContent({ taskId }: Props) {
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => handleRemoveAttachment(att.id)}
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all"
-                        title="Remove"
+                        type="button"
+                        onClick={() => handleDownloadAttachment(att)}
+                        disabled={downloadingAttachmentId === att.id}
+                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
+                        title="Download"
+                        aria-label={`Download ${att.fileName}`}
                       >
-                        <Trash2 size={13} />
+                        {downloadingAttachmentId === att.id
+                          ? <Loader2 size={13} className="animate-spin" />
+                          : <Download size={13} />}
                       </button>
+                      {(canManageTask || att.uploadedBy === currentUserId) && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(att.id)}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all"
+                          title="Remove"
+                          aria-label={`Remove ${att.fileName}`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -610,7 +680,8 @@ export default function TaskDetailContent({ taskId }: Props) {
                 >
                   <option value="">Select a department Developer or Tester</option>
                   {eligibleMembers
-                    .filter(member => !assignees.some(assignee => assignee.userId === member.userId))
+                    .filter(member => member.userId !== task.createdBy
+                      && !assignees.some(assignee => assignee.userId === member.userId))
                     .map(member => (
                       <option key={member.userId} value={member.userId}>
                         {member.email} ({member.role})
@@ -635,29 +706,35 @@ export default function TaskDetailContent({ taskId }: Props) {
               </div>
             ) : (
               <div className="space-y-2.5">
-                {assignees.map(a => (
-                  <div key={a.userId} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-bold text-primary">
-                        {a.userId.slice(0, 2).toUpperCase()}
-                      </span>
+                {assignees.map(a => {
+                  const member = eligibleMembers.find(candidate => candidate.userId === a.userId);
+                  const displayName = member
+                    ? `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || member.email
+                    : a.userId;
+                  return (
+                    <div key={a.userId} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-primary">
+                          {displayName.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{a.status.replace(/_/g, ' ')}</p>
+                      </div>
+                      {canManageTask && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAssignee(a.userId)}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                          title="Remove assignee"
+                        >
+                          <UserMinus size={13} />
+                        </button>
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{a.userId}</p>
-                      <p className="text-xs text-muted-foreground truncate">{a.status.replace(/_/g, ' ')}</p>
-                    </div>
-                    {canManageTask && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAssignee(a.userId)}
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                        title="Remove assignee"
-                      >
-                        <UserMinus size={13} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

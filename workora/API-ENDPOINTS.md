@@ -14,6 +14,16 @@ start as `DRAFT`. Assignment is a separate operation on
 or Testers in the task's department. Only an active company owner/admin or the
 project manager can manage task assignments. `CHANGES_REQUESTED` requires a
 reason; tester acceptance and changes-request actions are restricted by role.
+The task creator is the immutable user recorded in `createdBy` and cannot be
+added as an assignee to that task. Only company owners/admins may archive tasks;
+archiving hides tasks from active task lists while preserving submissions,
+history, and stored files. Project managers may create projects only in their
+assigned departments; only owners/admins may archive projects or assign a
+project manager.
+
+Department lists and member lists are scoped to Owner/Admin or the caller's
+assigned departments. Project-member lists require access to the corresponding
+project's department.
 
 Department membership is a separate, additive relation: an active company
 member can belong to multiple departments and hold a different department role
@@ -48,6 +58,10 @@ still apply.
 - Organization member role updates support the existing member route and the
   frontend-compatible `/roles` aliases.
 - Invitation acceptance supports the company-prefixed frontend route.
+- Incoming company invitations are available at
+  `GET /api/organization/api/v1/invitations/pending` for the authenticated
+  user's email; responses include the company name and can be accepted through
+  `POST /api/organization/api/v1/companies/{companyId}/invitations/{invitationId}/accept`.
 - Department updates and archive use
   `/api/v1/companies/{companyId}/departments/{departmentId}`.
 - `GET /api/v1/companies/{companyId}/members/me` returns the caller's active
@@ -402,6 +416,8 @@ Response:
   "timestamp": "2026-09-24T10:18:30Z"
 }
 ```
+
+Verification email requests are limited to one resend per account per 60 seconds. A request during the cooldown returns HTTP `429 Too Many Requests`; the response does not reveal whether an email address is registered.
 
 #### `POST /api/v1/auth/password-resets`
 
@@ -1424,6 +1440,12 @@ Primary database: `task_db`
 - `DELETE /api/v1/tasks/{taskId}/assignees/{userId}`
 - `PATCH /api/v1/tasks/{taskId}/status`
 
+`DELETE /api/v1/tasks/{taskId}` archives the task (sets its archive timestamp)
+and removes it from active lists without deleting its submissions, status
+history, assignees, attachments, or task-scoped storage objects. Only company
+owners/admins may archive tasks; project managers can manage assignments but
+cannot archive tasks.
+
 ### Task submissions and attachments
 
 - `POST /api/v1/tasks/{taskId}/submissions`
@@ -1432,8 +1454,17 @@ Primary database: `task_db`
 - `GET /api/v1/tasks/{taskId}/history`
 - `GET /api/v1/tasks/{taskId}/summary`
 - `GET /api/v1/tasks/{taskId}/attachments`
+- `POST /api/v1/tasks/{taskId}/attachments/uploads`
 - `POST /api/v1/tasks/{taskId}/attachments`
+- `GET /api/v1/tasks/{taskId}/attachments/{attachmentId}/download`
 - `DELETE /api/v1/tasks/{taskId}/attachments/{attachmentId}`
+
+Task files obtain a presigned `PUT` URL from the task-scoped upload endpoint,
+then are linked with JSON attachment metadata. Upload URL creation, listing,
+and download URL creation require task-view access. Generic storage upload,
+download, and delete routes reject the `tasks` namespace. Removal is limited to
+the uploader or task manager and deletes both the attachment record and its
+stored object.
 
 ### Workspace and query views
 
@@ -2128,9 +2159,9 @@ some backend routes are service callbacks or admin-only operations.
   `GET /api/recruitment/api/v1/public/recruitment-posts` or the
   company-scoped route; publish, application status, withdrawal, application
   files, and current-user applications now map to implemented routes.
-- Task deletion now maps to the implemented `PATCH
-  /api/work/api/v1/tasks/{taskId}/status` with `CANCELLED`; the previous
-  `DELETE` route did not exist.
+- Task archive now maps to `DELETE /api/work/api/v1/tasks/{taskId}`. The
+  endpoint preserves related records and files and is restricted to company
+  owners/admins.
 - Bug status actions now use the implemented `PATCH
   /api/bug/api/v1/bug-reports/{reportId}/status`; the previous per-action
   lifecycle routes did not exist.

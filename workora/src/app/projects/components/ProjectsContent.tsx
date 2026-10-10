@@ -1,11 +1,13 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FolderKanban, Plus, Search, MoreHorizontal, Archive, Trash2, Users, Calendar, Loader2, ChevronRight, Eye, ArrowLeft } from 'lucide-react';
+import { FolderKanban, Plus, Search, MoreHorizontal, Archive, Users, Calendar, Loader2, ChevronRight, Eye, ArrowLeft } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { projectsApi, type Project } from '@/lib/api/projects';
 import { organizationApi } from '@/lib/api/organization';
+import type { Department } from '@/lib/api/types';
 import { formatDateOnly } from '@/lib/date';
 import Link from 'next/link';
 
@@ -24,11 +26,20 @@ const PRIORITY_BADGE: Record<string, string> = {
 
 interface CreateProjectModalProps {
   departmentId: string;
+  departments: Department[];
+  allowManagerSelection: boolean;
   onClose: () => void;
   onCreated: (project: Project) => void;
 }
 
-function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectModalProps) {
+function CreateProjectModal({
+  departmentId,
+  departments,
+  allowManagerSelection,
+  onClose,
+  onCreated,
+}: CreateProjectModalProps) {
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState(departmentId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -37,12 +48,13 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    organizationApi.listDepartmentMembers(departmentId)
+    setProjectManagerId('');
+    organizationApi.listDepartmentMembers(selectedDepartmentId)
       .then(response => {
         setEligibleManagers(response.data
             .filter(member => member.departmentMemberships?.some(
-              assignment => assignment.departmentId === departmentId && assignment.role === 'PROJECT_MANAGER'
-            ) || (member.role === 'PROJECT_MANAGER' && member.departmentId === departmentId))
+              assignment => assignment.departmentId === selectedDepartmentId && assignment.role === 'PROJECT_MANAGER'
+            ) || (member.role === 'PROJECT_MANAGER' && member.departmentId === selectedDepartmentId))
             .map(({ userId, email }) => ({ userId, email })));
       })
       .catch(err => {
@@ -50,14 +62,14 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
           ? (err.response?.data?.message ?? 'Failed to load department project managers')
           : 'Failed to load department project managers');
       });
-  }, [departmentId]);
+  }, [selectedDepartmentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const res = await projectsApi.createProject(departmentId, {
+      const res = await projectsApi.createProject(selectedDepartmentId, {
         name: name.trim(),
         description: description || undefined,
         projectManagerId: projectManagerId || undefined,
@@ -73,9 +85,9 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-lg fade-scale-in">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center"><FolderKanban size={18} className="text-primary" /></div>
@@ -84,6 +96,21 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {departments.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Department *</label>
+              <select
+                value={selectedDepartmentId}
+                onChange={event => setSelectedDepartmentId(event.target.value)}
+                className="input-base"
+                required
+              >
+                {departments.map(department => (
+                  <option key={department.id} value={department.id}>{department.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Project Name *</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Mobile app refresh" className="input-base" required />
@@ -96,22 +123,24 @@ function CreateProjectModal({ departmentId, onClose, onCreated }: CreateProjectM
             <label className="block text-sm font-medium text-foreground mb-1.5">Project Deadline</label>
             <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-base" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Project Manager</label>
-            <select
-              value={projectManagerId}
-              onChange={e => setProjectManagerId(e.target.value)}
-              className="input-base"
-            >
-              <option value="">Use my account</option>
-              {eligibleManagers.map(manager => (
-                <option key={manager.userId} value={manager.userId}>{manager.email}</option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Only active Project Managers assigned to this department can be selected.
-            </p>
-          </div>
+          {allowManagerSelection && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Project Manager</label>
+              <select
+                value={projectManagerId}
+                onChange={e => setProjectManagerId(e.target.value)}
+                className="input-base"
+              >
+                <option value="">Use my account</option>
+                {eligibleManagers.map(manager => (
+                  <option key={manager.userId} value={manager.userId}>{manager.email}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Only active Project Managers assigned to this department can be selected.
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 py-2.5 rounded-lg font-medium text-sm">Cancel</button>
             <button type="submit" disabled={loading || !name.trim()} className="btn-primary flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
@@ -133,6 +162,10 @@ export default function ProjectsContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [projectDepartments, setProjectDepartments] = useState<Department[]>([]);
+  const [createDepartmentId, setCreateDepartmentId] = useState('');
+  const [canCreateInScope, setCanCreateInScope] = useState(false);
+  const [canManageCompanyProjects, setCanManageCompanyProjects] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [createOpen, setCreateOpen] = useState(false);
@@ -140,11 +173,36 @@ export default function ProjectsContent() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setCompanyId(null);
+    setProjectDepartments([]);
+    setCanCreateInScope(false);
+    setCanManageCompanyProjects(false);
     try {
       const orgRes = await organizationApi.listCompanies({ page: 0, size: 1 });
       const cId = orgRes.data?.content?.[0]?.id;
       if (!cId) { setLoading(false); return; }
       setCompanyId(cId);
+      const membershipRes = await organizationApi.getMyMembership(cId);
+      const membership = membershipRes.data;
+      const isOwnerOrAdmin = membership.role === 'OWNER' || membership.role === 'ADMIN';
+      const departmentRes = await organizationApi.listDepartments(cId);
+      const projectManagerDepartmentIds = new Set(
+        membership.departmentMemberships
+          ?.filter(assignment => assignment.role === 'PROJECT_MANAGER')
+          .map(assignment => assignment.departmentId) ?? []
+      );
+      if (membership.role === 'PROJECT_MANAGER' && membership.departmentId) {
+        projectManagerDepartmentIds.add(membership.departmentId);
+      }
+      const availableDepartments = isOwnerOrAdmin
+        ? departmentRes.data
+        : departmentRes.data.filter(department => projectManagerDepartmentIds.has(department.id));
+      setProjectDepartments(availableDepartments);
+      setCreateDepartmentId(departmentId && availableDepartments.some(department => department.id === departmentId)
+        ? departmentId
+        : availableDepartments[0]?.id ?? '');
+      setCanManageCompanyProjects(isOwnerOrAdmin);
+      setCanCreateInScope(availableDepartments.length > 0);
       const projRes = await projectsApi.listCompanyProjects(cId, { page: 0, size: 50 });
       const list = projRes.data?.content ?? [];
       setProjects(list);
@@ -153,7 +211,7 @@ export default function ProjectsContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [departmentId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -164,17 +222,6 @@ export default function ProjectsContent() {
       toast.success(`"${name}" archived`);
     } catch (err) {
       toast.error(err instanceof AxiosError ? (err.response?.data?.message ?? 'Failed to archive project') : 'Failed to archive project');
-    }
-    setActiveMenu(null);
-  };
-
-  const handleDelete = async (id: string, name: string) => {
-    try {
-      await projectsApi.deleteProject(id);
-      setProjects(prev => prev.filter(p => p.id !== id));
-      toast.success(`"${name}" deleted`);
-    } catch (err) {
-      toast.error(err instanceof AxiosError ? (err.response?.data?.message ?? 'Failed to delete project') : 'Failed to delete project');
     }
     setActiveMenu(null);
   };
@@ -210,7 +257,7 @@ export default function ProjectsContent() {
               : "Manage your company's projects and phases"}
           </p>
         </div>
-        {companyId && (
+        {companyId && canCreateInScope && (
           <button onClick={() => setCreateOpen(true)} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold">
             <Plus size={15} />New Project
           </button>
@@ -221,7 +268,7 @@ export default function ProjectsContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Search projects…" value={search} onChange={e => setSearch(e.target.value)} className="input-base pl-8 text-sm" />
+          <input type="text" placeholder="Search projects…" value={search} onChange={e => setSearch(e.target.value)} className="input-base input-search text-sm" />
         </div>
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           {['ALL', 'ACTIVE', 'ARCHIVED', 'COMPLETED'].map(s => (
@@ -251,7 +298,7 @@ export default function ProjectsContent() {
               ? `No projects found for the ${departmentName ?? 'selected'} department`
               : search || statusFilter !== 'ALL' ? 'No projects match your filters' : 'No projects yet'}
           </p>
-          {!search && statusFilter === 'ALL' && (
+          {!search && statusFilter === 'ALL' && canCreateInScope && (
             <button onClick={() => setCreateOpen(true)} className="btn-primary mt-4 px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2">
               <Plus size={14} />Create First Project
             </button>
@@ -281,27 +328,30 @@ export default function ProjectsContent() {
                   </div>
                 </div>
                 <div className="relative flex-shrink-0">
-                  <button onClick={() => setActiveMenu(activeMenu === project.id ? null : project.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all">
-                    <MoreHorizontal size={15} />
-                  </button>
-                  {activeMenu === project.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
-                      <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                        <Link href={`/projects/${project.id}`} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
-                          <Eye size={12} className="text-muted-foreground" />View Details
-                        </Link>
-                        {project.status !== 'ARCHIVED' && (
-                          <button onClick={() => handleArchive(project.id, project.name)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 transition-colors">
-                            <Archive size={12} />Archive
-                          </button>
-                        )}
-                        <button onClick={() => handleDelete(project.id, project.name)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
-                          <Trash2 size={12} />Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <FloatingMenu
+                    open={activeMenu === project.id}
+                    onOpenChange={(open) => setActiveMenu(open ? project.id : null)}
+                    widthClassName="w-40"
+                    trigger={(triggerProps) => (
+                      <button
+                        {...triggerProps}
+                        type="button"
+                        aria-label={`Actions for ${project.name}`}
+                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all"
+                      >
+                        <MoreHorizontal size={15} />
+                      </button>
+                    )}
+                  >
+                    <Link href={`/projects/${project.id}`} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
+                      <Eye size={12} className="text-muted-foreground" />View Details
+                    </Link>
+                    {canManageCompanyProjects && project.status !== 'ARCHIVED' && (
+                      <button onClick={() => handleArchive(project.id, project.name)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 transition-colors">
+                        <Archive size={12} />Archive
+                      </button>
+                    )}
+                  </FloatingMenu>
                 </div>
               </div>
 
@@ -340,9 +390,11 @@ export default function ProjectsContent() {
         </div>
       )}
 
-      {createOpen && departmentId && (
+      {createOpen && createDepartmentId && (
         <CreateProjectModal
-          departmentId={departmentId}
+          departmentId={createDepartmentId}
+          departments={projectDepartments}
+          allowManagerSelection={canManageCompanyProjects}
           onClose={() => setCreateOpen(false)}
           onCreated={(p) => { setProjects(prev => [p, ...prev]); setCreateOpen(false); }}
         />

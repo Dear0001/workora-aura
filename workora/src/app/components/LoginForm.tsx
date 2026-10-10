@@ -35,7 +35,7 @@ export default function LoginForm({ onSwitchToRegister, onForgotPassword }: Prop
       const { tokens, user } = await login(data.email, data.password);
       storeTokens(tokens);
       storeUser(user);
-      toast.success(`Welcome back, ${user.firstName}!`);
+      toast.success(user.firstName?.trim() ? `Welcome back, ${user.firstName}!` : 'Welcome back!');
       router.push('/dashboard');
     } catch (err: unknown) {
       let message = 'Login failed. Please check your credentials and try again.';
@@ -43,8 +43,10 @@ export default function LoginForm({ onSwitchToRegister, onForgotPassword }: Prop
         const apiMsg = err.response?.data?.message;
         if (apiMsg) message = apiMsg;
         else if (err.response?.status === 401) message = 'Invalid email or password.';
-        else if (err.response?.status === 403) message = 'Your account is not verified or has been disabled.';
-        else if (!err.response) message = 'Cannot reach the server. Make sure the backend is running on localhost:8080.';
+        else if (err.response?.status === 403)
+          message = 'Your account is not verified or has been disabled.';
+        else if (!err.response)
+          message = 'Cannot reach the server. Make sure the backend is running on localhost:8080.';
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -71,13 +73,24 @@ export default function LoginForm({ onSwitchToRegister, onForgotPassword }: Prop
             autoComplete="email"
             placeholder="you@company.com"
             className={`input-base ${errors.email ? 'input-error' : ''}`}
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? 'login-email-error' : undefined}
             {...register('email', {
               required: 'Email address is required',
-              pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address' },
+              pattern: {
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                message: 'Enter a valid email address',
+              },
             })}
           />
           {errors.email && (
-            <p className="mt-1 text-xs text-red-500 flex items-center gap-1">{errors.email.message}</p>
+            <p
+              id="login-email-error"
+              className="mt-1 text-xs text-red-500 flex items-center gap-1"
+              role="alert"
+            >
+              {errors.email.message}
+            </p>
           )}
         </div>
 
@@ -102,6 +115,8 @@ export default function LoginForm({ onSwitchToRegister, onForgotPassword }: Prop
               autoComplete="current-password"
               placeholder="Enter your password"
               className={`input-base pr-10 ${errors.password ? 'input-error' : ''}`}
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={errors.password ? 'login-password-error' : undefined}
               {...register('password', {
                 required: 'Password is required',
                 minLength: { value: 6, message: 'Password must be at least 6 characters' },
@@ -117,7 +132,9 @@ export default function LoginForm({ onSwitchToRegister, onForgotPassword }: Prop
             </button>
           </div>
           {errors.password && (
-            <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+            <p id="login-password-error" className="mt-1 text-xs text-red-500" role="alert">
+              {errors.password.message}
+            </p>
           )}
         </div>
 
@@ -151,16 +168,6 @@ export default function LoginForm({ onSwitchToRegister, onForgotPassword }: Prop
           )}
         </button>
       </form>
-
-      {/* API info banner */}
-      <div className="mt-5 p-3 rounded-lg border border-border bg-muted/40">
-        <p className="text-xs text-muted-foreground text-center">
-          Connects to backend at{' '}
-          <span className="font-mono text-foreground font-medium">
-            {process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080'}
-          </span>
-        </p>
-      </div>
 
       <p className="text-center text-sm text-muted-foreground mt-5">
         Don&apos;t have an account?{' '}

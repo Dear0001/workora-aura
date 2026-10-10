@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
@@ -26,8 +27,11 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getCurrentUser(Authentication authentication) {
-        String email = authentication.getName();
-        return ResponseEntity.ok(ApiResponse.success(authService.getCurrentProfile(email)));
+        JwtAuthenticationToken token = (JwtAuthenticationToken) authentication;
+        return ResponseEntity.ok(ApiResponse.success(authService.getCurrentProfile(
+                java.util.UUID.fromString(token.getToken().getSubject()),
+                token.getToken().getClaimAsString("email")
+        )));
     }
 
     @PatchMapping("/me")
@@ -35,7 +39,7 @@ public class UserController {
             Authentication authentication,
             @Valid @RequestBody UpdateUserRequest request
     ) {
-        String email = authentication.getName();
+        JwtAuthenticationToken token = (JwtAuthenticationToken) authentication;
         AuthService.UpdateProfileCommand command = new AuthService.UpdateProfileCommand(
                 request.firstName(),
                 request.lastName(),
@@ -45,7 +49,11 @@ public class UserController {
                 request.bio(),
                 request.experience()
         );
-        return ResponseEntity.ok(ApiResponse.success(authService.updateCurrentProfile(email, command)));
+        return ResponseEntity.ok(ApiResponse.success(authService.updateCurrentProfile(
+                java.util.UUID.fromString(token.getToken().getSubject()),
+                token.getToken().getClaimAsString("email"),
+                command
+        )));
     }
 
     public record UpdateUserRequest(

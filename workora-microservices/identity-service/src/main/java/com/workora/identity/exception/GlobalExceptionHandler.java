@@ -18,7 +18,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Map<String, String>>> handleAppException(AppException ex) {
         Map<String, String> details = new HashMap<>();
         details.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        HttpStatus status = ex instanceof RateLimitException
+                ? HttpStatus.TOO_MANY_REQUESTS
+                : ex instanceof EmailNotVerifiedException
+                        ? HttpStatus.FORBIDDEN
+                        : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
                 .body(ApiResponse.failure(ex.getMessage()));
     }
 

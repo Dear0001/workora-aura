@@ -8,9 +8,11 @@ import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
 
-    List<Task> findByPhaseId(UUID phaseId);
+    List<Task> findByPhaseIdAndArchivedAtIsNull(UUID phaseId);
 
     List<Task> findByProjectId(UUID projectId);
 
-    List<Task> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
+    List<Task> findByCompanyIdAndArchivedAtIsNullOrderByCreatedAtDesc(UUID companyId);
+
+    java.util.Optional<Task> findByIdAndArchivedAtIsNull(UUID taskId);
 }

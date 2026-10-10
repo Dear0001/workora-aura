@@ -103,8 +103,7 @@ public class SubmissionService {
     }
 
     private Task loadTask(UUID taskId) {
-        return taskRepository.findById(taskId)
+        return taskRepository.findByIdAndArchivedAtIsNull(taskId)
                 .orElseThrow(() -> new NotFoundException("Task not found"));
     }
 }
-

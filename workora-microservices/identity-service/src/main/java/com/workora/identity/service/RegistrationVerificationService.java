@@ -63,17 +63,20 @@ public class RegistrationVerificationService {
         if (session.getVerifiedAt() != null) {
             return response(session, "VERIFIED");
         }
-        if (!now.isBefore(session.getExpiresAt())) {
-            return response(session, "EXPIRED");
-        }
-        if (keycloakService.isEmailVerified(session.getEmail())) {
-            User user = userRepository.findById(session.getUserId())
-                    .orElseThrow(() -> new AppException("Registration user profile not found"));
+        User user = userRepository.findById(session.getUserId())
+                .orElseThrow(() -> new AppException("Registration user profile not found"));
+        boolean verified = user.getKeycloakUserId() == null
+                ? keycloakService.isEmailVerifiedByEmail(session.getEmail())
+                : keycloakService.isEmailVerified(user.getKeycloakUserId());
+        if (verified) {
             user.setEmailVerified(true);
             userRepository.save(user);
             session.markVerified(now);
             sessionRepository.save(session);
             return response(session, "VERIFIED");
+        }
+        if (!now.isBefore(session.getExpiresAt())) {
+            return response(session, "EXPIRED");
         }
         return response(session, "PENDING");
     }

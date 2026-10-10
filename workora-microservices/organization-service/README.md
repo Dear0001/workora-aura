@@ -14,6 +14,7 @@ validation, authorization, and REST APIs.
 - `/api/v1/companies/{companyId}/departments` – department management
 - `/api/v1/companies/{companyId}/members` – membership lookup and management
 - `/api/v1/companies/{companyId}/invitations` – invitation management
+- `/api/v1/invitations/pending` – recipient-scoped pending invitations, including company name
 - `/api/v1/invitations/accept` – accept an invitation
 
 Company ratings, audit events, advanced role governance, and pagination remain

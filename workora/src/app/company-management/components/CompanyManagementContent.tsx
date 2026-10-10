@@ -39,6 +39,7 @@ export default function CompanyManagementContent() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingCompany, setDeletingCompany] = useState(false);
+  const [canManageCompany, setCanManageCompany] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const router = useRouter();
@@ -78,6 +79,27 @@ export default function CompanyManagementContent() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!selectedCompany) {
+      setCanManageCompany(false);
+      return;
+    }
+    let cancelled = false;
+    setCanManageCompany(false);
+    organizationApi.getMyMembership(selectedCompany.id)
+      .then(({ data }) => {
+        if (!cancelled) setCanManageCompany(data.role === 'OWNER' || data.role === 'ADMIN');
+      })
+      .catch(err => {
+        if (!cancelled) {
+          toast.error(err instanceof AxiosError
+            ? (err.response?.data?.message ?? 'Failed to load company permissions')
+            : 'Failed to load company permissions');
+        }
+      });
+    return () => { cancelled = true; };
+  }, [selectedCompany?.id]);
 
   const handleDeleteCompany = async () => {
     if (!selectedCompany) return;
@@ -206,7 +228,7 @@ export default function CompanyManagementContent() {
               Create Company
             </button>
           )}
-          {activeTab === 'members' && (
+          {activeTab === 'members' && canManageCompany && (
             <button
               onClick={() => setInviteModalOpen(true)}
               className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
@@ -215,7 +237,7 @@ export default function CompanyManagementContent() {
               Invite Member
             </button>
           )}
-          {activeTab === 'departments' && (
+          {activeTab === 'departments' && canManageCompany && (
             <button
               onClick={() => setDeptModalOpen(true)}
               className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
@@ -250,17 +272,22 @@ export default function CompanyManagementContent() {
         {activeTab === 'overview' && (
           <CompanyOverviewTab
             company={selectedCompany}
-            onEdit={() => setEditCompanyOpen(true)}
-            onDelete={handleDeleteCompany}
+            onEdit={canManageCompany ? () => setEditCompanyOpen(true) : undefined}
+            onDelete={canManageCompany ? handleDeleteCompany : undefined}
           />
         )}
         {activeTab === 'members' && (
-          <MembersTab companyId={selectedCompany.id} onInvite={() => setInviteModalOpen(true)} />
+          <MembersTab
+            companyId={selectedCompany.id}
+            canManageMembers={canManageCompany}
+            onInvite={() => setInviteModalOpen(true)}
+          />
         )}
         {activeTab === 'departments' && (
           <DepartmentsTab
             key={`${selectedCompany.id}-${departmentsRefreshKey}`}
             companyId={selectedCompany.id}
+            canManageDepartments={canManageCompany}
             onCreateDept={() => setDeptModalOpen(true)}
           />
         )}
@@ -268,17 +295,17 @@ export default function CompanyManagementContent() {
       </div>
 
       {/* Modals */}
-      {inviteModalOpen && (
+      {inviteModalOpen && canManageCompany && (
         <InviteMemberModal companyId={selectedCompany.id} onClose={() => setInviteModalOpen(false)} />
       )}
-      {deptModalOpen && (
+      {deptModalOpen && canManageCompany && (
         <CreateDepartmentModal
           companyId={selectedCompany.id}
           onClose={() => setDeptModalOpen(false)}
           onCreated={() => setDepartmentsRefreshKey((key) => key + 1)}
         />
       )}
-      {editCompanyOpen && (
+      {editCompanyOpen && canManageCompany && (
         <EditCompanyModal
           company={selectedCompany}
           onClose={() => setEditCompanyOpen(false)}
@@ -302,7 +329,7 @@ export default function CompanyManagementContent() {
         />
       )}
       {deletingCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40">
           <div className="bg-card rounded-2xl p-6 text-sm text-muted-foreground flex items-center gap-3">
             <span className="animate-spin">⏳</span> Deleting company…
           </div>
@@ -326,9 +353,9 @@ function SubscriptionPrompt({
   onUpgrade: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="subscription-prompt-title">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="subscription-prompt-title">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl bg-card p-6 shadow-modal fade-scale-in">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-6 shadow-modal fade-scale-in">
         <button
           type="button"
           onClick={onClose}

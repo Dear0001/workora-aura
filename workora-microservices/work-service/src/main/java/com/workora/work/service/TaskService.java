@@ -164,7 +164,7 @@ public class TaskService {
         ProjectContext context = projectClient.resolvePhase(phaseId);
         var membership = authorization.requireCompanyMember(context.companyId());
         boolean manager = authorization.canManageInContext(context, caller, membership);
-        return taskRepository.findByPhaseId(phaseId).stream()
+        return taskRepository.findByPhaseIdAndArchivedAtIsNull(phaseId).stream()
                 .filter(task -> manager
                         || taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(task.getId(), caller.userId()))
                 .map(mapper::toResponse)
@@ -174,7 +174,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskResponse> listForCompany(UUID companyId, CurrentUser caller) {
         var membership = authorization.requireCompanyMember(companyId);
-        return taskRepository.findByCompanyIdOrderByCreatedAtDesc(companyId).stream()
+        return taskRepository.findByCompanyIdAndArchivedAtIsNullOrderByCreatedAtDesc(companyId).stream()
                 .filter(task -> authorization.canView(task, caller, membership))
                 .map(mapper::toResponse)
                 .toList();
@@ -187,6 +187,7 @@ public class TaskService {
                 .distinct()
                 .toList();
         return taskRepository.findAllById(taskIds).stream()
+                .filter(task -> !task.isArchived())
                 .filter(task -> authorization.canView(task, caller))
                 .map(mapper::toResponse)
                 .toList();
@@ -215,6 +216,14 @@ public class TaskService {
         return mapper.toResponse(taskRepository.save(task));
     }
 
+    @Transactional
+    public void archive(UUID taskId, CurrentUser caller) {
+        Task task = load(taskId);
+        authorization.requireCanArchiveTask(task);
+        task.setArchivedAt(Instant.now());
+        taskRepository.save(task);
+    }
+
     @Transactional(readOnly = true)
     public List<AssigneeResponse> listAssignees(UUID taskId, CurrentUser caller) {
         Task task = load(taskId);
@@ -229,11 +238,10 @@ public class TaskService {
         Task task = load(taskId);
         authorization.requireCanManageTask(task, caller);
 
+        authorization.requireEligibleAssignee(task, request.userId());
         if (taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(taskId, request.userId())) {
             throw new ConflictException("User is already an active assignee of this task");
         }
-
-        authorization.requireEligibleAssignee(task, request.userId());
         TaskAssignee assignee = taskAssigneeRepository.save(
                 new TaskAssignee(taskId, request.userId(), task.getDepartmentId(), caller.userId()));
 
@@ -285,6 +293,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public Task load(UUID taskId) {
         return taskRepository.findById(taskId)
+                .filter(task -> !task.isArchived())
                 .orElseThrow(() -> new NotFoundException("Task not found"));
     }
 
@@ -300,4 +309,5 @@ public class TaskService {
                 .toList();
         return new TaskProgressResponse(task.getId(), task.getStatus(), task.getCompletionRule(), progress);
     }
+
 }

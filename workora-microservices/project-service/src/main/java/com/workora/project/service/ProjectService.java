@@ -71,6 +71,7 @@ public class ProjectService {
         }
         UUID managerId = request.projectManagerId() != null ? request.projectManagerId() : caller.userId();
         if (request.projectManagerId() != null) {
+            authorization.requireCanAssignProjectManager(companyId);
             authorization.requireEligibleProjectManager(companyId, departmentId, managerId);
         }
         Project project = new Project(companyId, departmentId, name, managerId);
@@ -152,6 +153,7 @@ public class ProjectService {
             project.setDescription(request.description());
         }
         if (request.projectManagerId() != null) {
+            authorization.requireCanAssignProjectManager(project);
             authorization.requireEligibleProjectManager(
                     project.getCompanyId(), project.getDepartmentId(), request.projectManagerId());
             project.setProjectManagerId(request.projectManagerId());
@@ -189,7 +191,7 @@ public class ProjectService {
     @Transactional
     public ProjectResponse archive(UUID projectId, CurrentUser caller) {
         Project project = loadActive(projectId);
-        requireCanManageProject(project, caller);
+        authorization.requireCanArchiveProject(project);
         transitionStatus(project, ProjectStatus.ARCHIVED, caller.userId());
         return mapper.toResponse(projectRepository.save(project));
     }
@@ -197,7 +199,10 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public java.util.List<PhaseMemberResponse> listMembers(UUID projectId, CurrentUser caller) {
         Project project = loadActive(projectId);
-        authorization.requireCompanyMember(project.getCompanyId());
+        if (!authorization.canViewProject(project, caller)) {
+            throw new com.workora.project.exception.ForbiddenException(
+                    "You are not authorized to view this project's members", "PROJECT_MEMBERS_VIEW_DENIED");
+        }
         return phaseMemberRepository.findByProjectId(projectId).stream().map(m ->
                 new PhaseMemberResponse(m.getId(), m.getPhaseId(), m.getUserId(), m.getEmail(),
                         m.getCreatedAt())).toList();
@@ -206,7 +211,7 @@ public class ProjectService {
     @Transactional
     public ProjectResponse assignManager(UUID projectId, UUID managerId, CurrentUser caller) {
         Project project = loadActive(projectId);
-        requireCanManageProject(project, caller);
+        authorization.requireCanAssignProjectManager(project);
         authorization.requireEligibleProjectManager(project.getCompanyId(), project.getDepartmentId(), managerId);
         project.setProjectManagerId(managerId);
         return mapper.toResponse(projectRepository.save(project));

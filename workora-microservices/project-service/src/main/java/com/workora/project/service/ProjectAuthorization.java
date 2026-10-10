@@ -58,6 +58,28 @@ public class ProjectAuthorization {
         }
     }
 
+    public void requireCanArchiveProject(Project project) {
+        CallerMembership membership = organizationClient.myMembership(project.getCompanyId());
+        if (!membership.isOwnerOrAdmin()) {
+            throw new ForbiddenException(
+                    "Only a company owner or administrator can archive a project",
+                    "PROJECT_ARCHIVE_DENIED");
+        }
+    }
+
+    public void requireCanAssignProjectManager(Project project) {
+        requireCanAssignProjectManager(project.getCompanyId());
+    }
+
+    public void requireCanAssignProjectManager(UUID companyId) {
+        CallerMembership membership = organizationClient.myMembership(companyId);
+        if (!membership.isOwnerOrAdmin()) {
+            throw new ForbiddenException(
+                    "Only a company owner or administrator can assign a project manager",
+                    "PROJECT_MANAGER_ASSIGNMENT_DENIED");
+        }
+    }
+
     public boolean canViewProject(Project project, CurrentUser caller) {
         CallerMembership membership = organizationClient.myMembership(project.getCompanyId());
         return membership.isOwnerOrAdmin()

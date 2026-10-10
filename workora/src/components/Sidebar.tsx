@@ -24,6 +24,7 @@ import {
 import { getStoredUser, logout } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { notificationsApi } from '@/lib/api/notifications';
+import { organizationApi } from '@/lib/api/organization';
 import { toast } from 'sonner';
 
 interface Props {
@@ -54,7 +55,12 @@ const NAV_SECTIONS = [
     items: [
       { href: '/bugs', icon: Bug, label: 'Bug Triage', badge: null },
       { href: '/recruitment', icon: Users, label: 'Recruitment', badge: null },
-      { href: '/recruitment/manager-decisions', icon: ClipboardCheck, label: 'Manager Decisions', badge: null },
+      {
+        href: '/recruitment/manager-decisions',
+        icon: ClipboardCheck,
+        label: 'Manager Decisions',
+        badge: null,
+      },
       { href: '/payments', icon: CreditCard, label: 'Payments', badge: null },
     ],
   },
@@ -73,15 +79,32 @@ export default function Sidebar({ collapsed, mobileOpen, onMobileClose }: Props)
   const router = useRouter();
   const [user, setUser] = useState<ReturnType<typeof getStoredUser>>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingInvitationCount, setPendingInvitationCount] = useState(0);
+  const displayName =
+    `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || user?.email || 'Account';
 
   useEffect(() => {
     setUser(getStoredUser());
+
+    const loadPendingInvitationCount = () => {
+      organizationApi
+        .listPendingInvitations()
+        .then((res) => setPendingInvitationCount(res.data.length))
+        .catch(() => toast.error('Failed to load pending invitation count'));
+    };
+
     notificationsApi
       .getUnreadCount()
       .then((res) => {
         setUnreadCount(res.data?.unread ?? 0);
       })
       .catch(() => toast.error('Failed to load unread notification count'));
+    loadPendingInvitationCount();
+
+    window.addEventListener('workora:pending-invitations-changed', loadPendingInvitationCount);
+    return () => {
+      window.removeEventListener('workora:pending-invitations-changed', loadPendingInvitationCount);
+    };
   }, []);
 
   const isActive = (href: string) => {
@@ -98,7 +121,9 @@ export default function Sidebar({ collapsed, mobileOpen, onMobileClose }: Props)
   return (
     <aside className={sidebarClasses}>
       {/* Logo area */}
-      <div className={`flex items-center h-16 border-b border-border flex-shrink-0 ${collapsed ? 'justify-center px-0' : 'px-4 gap-3'}`}>
+      <div
+        className={`flex items-center h-16 border-b border-border flex-shrink-0 ${collapsed ? 'justify-center px-0' : 'px-4 gap-3'}`}
+      >
         <AppLogo size={32} />
         {!collapsed && (
           <span className="font-bold text-base text-foreground tracking-tight">Workora</span>
@@ -119,7 +144,11 @@ export default function Sidebar({ collapsed, mobileOpen, onMobileClose }: Props)
               .map((item) => {
                 const active = isActive(item.href);
                 const isNotifications = item.href === '/notifications';
-                const badge = isNotifications && unreadCount > 0 ? String(unreadCount) : item.badge;
+                const notificationBadgeCount = unreadCount + pendingInvitationCount;
+                const badge =
+                  isNotifications && notificationBadgeCount > 0
+                    ? String(notificationBadgeCount)
+                    : item.badge;
                 return (
                   <Link
                     key={`nav-${item.href}`}
@@ -170,10 +199,10 @@ export default function Sidebar({ collapsed, mobileOpen, onMobileClose }: Props)
           {!collapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-foreground truncate">
-                  {user ? `${user.firstName} ${user.lastName}` : 'Account'}
+                <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.email ?? 'Not signed in'}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email ?? 'Not signed in'}</p>
               </div>
               <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
             </>

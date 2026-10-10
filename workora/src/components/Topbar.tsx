@@ -19,9 +19,12 @@ export default function Topbar({ onToggleSidebar, onMobileMenuOpen, sidebarColla
     setUser(getStoredUser());
   }, []);
 
-  const initials = user
-    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
-    : '?';
+  const firstName = user?.firstName?.trim();
+  const lastName = user?.lastName?.trim();
+  const initials =
+    `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() ||
+    user?.email?.[0]?.toUpperCase() ||
+    '?';
 
   return (
     <header className="h-16 bg-card border-b border-border flex items-center gap-4 px-4 lg:px-6 flex-shrink-0 sticky top-0 z-20">
@@ -54,7 +57,7 @@ export default function Topbar({ onToggleSidebar, onMobileMenuOpen, sidebarColla
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search projects, tasks, bugs…"
-              className="input-base pl-8 pr-8 text-sm h-9"
+              className="input-base input-search pr-8 text-sm h-9"
             />
             <button
               onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
@@ -91,7 +94,7 @@ export default function Topbar({ onToggleSidebar, onMobileMenuOpen, sidebarColla
             <span className="text-xs font-bold text-primary">{initials}</span>
           </div>
           <span className="hidden sm:block text-sm font-medium text-foreground">
-            {user?.firstName ?? 'Account'}
+            {firstName || 'Account'}
           </span>
           <ChevronDown size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
         </div>

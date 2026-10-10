@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Mail, Building2, Shield, Loader2, RefreshCw, AlertCircle, Users, ChevronDown, Calendar, Clock, UserCheck,  } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { organizationApi } from '@/lib/api/organization';
@@ -212,13 +213,6 @@ export default function ColleagueProfilesContent() {
     fetchData();
   }, [fetchData]);
 
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handler = () => { setShowRoleDropdown(false); setShowDeptDropdown(false); };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, []);
-
   const filtered = members.filter(m => {
     const q = search.toLowerCase();
     const matchSearch = !q || `${m.firstName} ${m.lastName} ${m.email} ${m.departmentName ?? ''}`.toLowerCase().includes(q);
@@ -289,71 +283,85 @@ export default function ColleagueProfilesContent() {
             placeholder="Search by name, email, department…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 placeholder:text-muted-foreground"
+            className="input-search w-full pr-3 py-2 text-sm bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 placeholder:text-muted-foreground"
           />
         </div>
 
         {/* Role filter */}
-        <div className="relative">
-          <button
-            onClick={e => { e.stopPropagation(); setShowRoleDropdown(p => !p); setShowDeptDropdown(false); }}
-            className="flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-lg bg-card hover:bg-muted transition-colors"
-          >
-            <Shield size={13} className="text-muted-foreground" />
-            <span className="text-foreground font-medium">
-              {roleFilter === 'ALL' ? 'All Roles' : (ROLE_CONFIG[roleFilter]?.label ?? roleFilter)}
-            </span>
-            <ChevronDown size={13} className="text-muted-foreground" />
-          </button>
-          {showRoleDropdown && (
-            <div className="absolute top-full mt-1 left-0 z-20 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[160px]" onClick={e => e.stopPropagation()}>
-              {ROLE_FILTERS.map(r => (
-                <button
-                  key={r}
-                  onClick={() => { setRoleFilter(r); setShowRoleDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${roleFilter === r ? 'text-primary font-semibold' : 'text-foreground'}`}
-                >
-                  {r !== 'ALL' && <span className={`w-2 h-2 rounded-full ${ROLE_CONFIG[r]?.dot}`} />}
-                  {r === 'ALL' ? 'All Roles' : (ROLE_CONFIG[r]?.label ?? r)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Department filter */}
-        {departments.length > 0 && (
-          <div className="relative">
+        <FloatingMenu
+          open={showRoleDropdown}
+          onOpenChange={(open) => {
+            setShowRoleDropdown(open);
+            if (open) setShowDeptDropdown(false);
+          }}
+          align="start"
+          widthClassName="min-w-[160px] w-max"
+          trigger={(triggerProps) => (
             <button
-              onClick={e => { e.stopPropagation(); setShowDeptDropdown(p => !p); setShowRoleDropdown(false); }}
+              {...triggerProps}
+              type="button"
               className="flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-lg bg-card hover:bg-muted transition-colors"
             >
-              <Building2 size={13} className="text-muted-foreground" />
+              <Shield size={13} className="text-muted-foreground" />
               <span className="text-foreground font-medium">
-                {deptFilter === 'ALL' ? 'All Departments' : deptFilter}
+                {roleFilter === 'ALL' ? 'All Roles' : (ROLE_CONFIG[roleFilter]?.label ?? roleFilter)}
               </span>
               <ChevronDown size={13} className="text-muted-foreground" />
             </button>
-            {showDeptDropdown && (
-              <div className="absolute top-full mt-1 left-0 z-20 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[180px] max-h-52 overflow-y-auto" onClick={e => e.stopPropagation()}>
-                <button
-                  onClick={() => { setDeptFilter('ALL'); setShowDeptDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${deptFilter === 'ALL' ? 'text-primary font-semibold' : 'text-foreground'}`}
-                >
-                  All Departments
-                </button>
-                {departments.map(d => (
-                  <button
-                    key={d}
-                    onClick={() => { setDeptFilter(d); setShowDeptDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${deptFilter === d ? 'text-primary font-semibold' : 'text-foreground'}`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
+          )}
+        >
+          {ROLE_FILTERS.map(r => (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${roleFilter === r ? 'text-primary font-semibold' : 'text-foreground'}`}
+            >
+              {r !== 'ALL' && <span className={`w-2 h-2 rounded-full ${ROLE_CONFIG[r]?.dot}`} />}
+              {r === 'ALL' ? 'All Roles' : (ROLE_CONFIG[r]?.label ?? r)}
+            </button>
+          ))}
+        </FloatingMenu>
+
+        {/* Department filter */}
+        {departments.length > 0 && (
+          <FloatingMenu
+            open={showDeptDropdown}
+            onOpenChange={(open) => {
+              setShowDeptDropdown(open);
+              if (open) setShowRoleDropdown(false);
+            }}
+            align="start"
+            widthClassName="min-w-[180px] w-max"
+            trigger={(triggerProps) => (
+              <button
+                {...triggerProps}
+                type="button"
+                className="flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-lg bg-card hover:bg-muted transition-colors"
+              >
+                <Building2 size={13} className="text-muted-foreground" />
+                <span className="text-foreground font-medium">
+                  {deptFilter === 'ALL' ? 'All Departments' : deptFilter}
+                </span>
+                <ChevronDown size={13} className="text-muted-foreground" />
+              </button>
             )}
-          </div>
+          >
+            <button
+              onClick={() => setDeptFilter('ALL')}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${deptFilter === 'ALL' ? 'text-primary font-semibold' : 'text-foreground'}`}
+            >
+              All Departments
+            </button>
+            {departments.map(d => (
+              <button
+                key={d}
+                onClick={() => setDeptFilter(d)}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${deptFilter === d ? 'text-primary font-semibold' : 'text-foreground'}`}
+              >
+                {d}
+              </button>
+            ))}
+          </FloatingMenu>
         )}
 
         {(search || roleFilter !== 'ALL' || deptFilter !== 'ALL') && (

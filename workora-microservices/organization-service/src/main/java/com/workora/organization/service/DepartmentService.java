@@ -5,6 +5,7 @@ import com.workora.organization.dto.DepartmentResponse;
 import com.workora.organization.dto.MemberResponse;
 import com.workora.organization.entity.CompanyStatus;
 import com.workora.organization.entity.Department;
+import com.workora.organization.entity.Membership;
 import com.workora.organization.exception.ConflictException;
 import com.workora.organization.exception.NotFoundException;
 import com.workora.organization.mapper.OrganizationMapper;
@@ -55,15 +56,21 @@ public class DepartmentService {
 
     @Transactional(readOnly = true)
     public List<DepartmentResponse> list(UUID companyId, CurrentUser caller, String search) {
-        membershipService.requireActiveMembership(companyId, caller.userId());
+        Membership membership = membershipService.requireActiveMembership(companyId, caller.userId());
         List<Department> departments = search == null || search.isBlank()
                 ? departmentRepository.findByCompanyIdAndStatusOrderByCreatedAtAsc(companyId, CompanyStatus.ACTIVE)
                 : departmentRepository.findByCompanyIdAndStatusAndNameContainingIgnoreCase(companyId, CompanyStatus.ACTIVE, search.trim());
+        if (!membership.getRole().isOwnerOrAdmin()) {
+            var assignedDepartmentIds = membershipService.departmentIdsForMember(companyId, caller.userId());
+            departments = departments.stream()
+                    .filter(department -> assignedDepartmentIds.contains(department.getId()))
+                    .toList();
+        }
         return departments.stream().map(mapper::toResponse).toList();
     }
 
     /**
-     * Resolves a department by id for a caller who is a member of the owning company.
+     * Resolves a department by id for a caller authorized in that department's scope.
      * Used by the caller's own membership/role checks and by other services that need
      * to map a department to its company.
      */
@@ -72,7 +79,7 @@ public class DepartmentService {
         Department department = departmentRepository.findById(departmentId)
                 .filter(d -> d.getStatus() == CompanyStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Department not found"));
-        membershipService.requireActiveMembership(department.getCompanyId(), caller.userId());
+        membershipService.requireCanViewDepartment(department.getCompanyId(), departmentId, caller.userId());
         return mapper.toResponse(department);
     }
 
@@ -81,8 +88,8 @@ public class DepartmentService {
         Department department = departmentRepository.findById(departmentId)
                 .filter(d -> d.getStatus() == CompanyStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Department not found"));
-        membershipService.requireActiveMembership(department.getCompanyId(), caller.userId());
-        return membershipService.listMembersByDepartment(departmentId);
+        membershipService.requireCanViewDepartment(department.getCompanyId(), departmentId, caller.userId());
+        return membershipService.listMembersByDepartment(departmentId, department.getCompanyId(), caller.userId());
     }
 
     @Transactional

@@ -113,4 +113,67 @@ class CompanyControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.data.code").value("COMPANY_QUOTA_EXCEEDED"));
     }
+
+    @Test
+    void inviteMember_withUnsupportedRole_returnsBadRequest() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        String companyBody = objectMapper.writeValueAsString(Map.of("name", "Invite test company"));
+        MvcResult companyResult = mockMvc.perform(post("/api/v1/companies")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@invite.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(companyBody))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String companyId = objectMapper.readTree(companyResult.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(post("/api/v1/companies/" + companyId + "/invitations")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@invite.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"new-member@invite.test","role":"MANAGER"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value(
+                        "Invalid invitation role. Choose Project Manager, Developer, Tester, Bug Hunter, or Admin."));
+    }
+
+    @Test
+    void inviteMember_withSupportedRole_createsInvitation() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        String companyBody = objectMapper.writeValueAsString(Map.of("name", "Invite success company"));
+        MvcResult companyResult = mockMvc.perform(post("/api/v1/companies")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@invite.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(companyBody))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String companyId = objectMapper.readTree(companyResult.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(post("/api/v1/companies/" + companyId + "/invitations")
+                        .with(jwt().jwt(tokenFor(ownerId, "owner@invite.test")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"new-member@invite.test","role":"PROJECT_MANAGER"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.invitation.role").value("PROJECT_MANAGER"));
+
+        MvcResult pendingResult = mockMvc.perform(get("/api/v1/invitations/pending")
+                        .with(jwt().jwt(tokenFor(UUID.randomUUID(), "new-member@invite.test"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].companyName").value("Invite success company"))
+                .andExpect(jsonPath("$.data[0].role").value("PROJECT_MANAGER"))
+                .andReturn();
+        String invitationId = objectMapper.readTree(pendingResult.getResponse().getContentAsString())
+                .path("data").get(0).path("id").asText();
+
+        mockMvc.perform(post("/api/v1/companies/" + companyId + "/invitations/" + invitationId + "/accept")
+                        .with(jwt().jwt(tokenFor(UUID.randomUUID(), "new-member@invite.test"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACCEPTED"));
+    }
 }

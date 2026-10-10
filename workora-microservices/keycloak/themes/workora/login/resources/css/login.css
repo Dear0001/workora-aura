@@ -1,113 +1,318 @@
-body.workora-action-token-page {
-  background: #f8fafc;
+:root {
+  --workora-background: #f8fafc;
+  --workora-card: #ffffff;
+  --workora-foreground: #0f172a;
+  --workora-muted: #64748b;
+  --workora-border: #e2e8f0;
+  --workora-primary: #2563eb;
+  --workora-primary-hover: #1d4ed8;
+  --workora-danger: #b91c1c;
+  --workora-danger-background: #fef2f2;
+  --workora-success: #166534;
+  --workora-success-background: #f0fdf4;
+  --workora-info-background: #eff6ff;
 }
 
-body.workora-action-token-page > * {
-  display: none !important;
+html,
+body {
+  min-height: 100%;
+  background: var(--workora-background);
 }
 
-.workora-verification-card {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
+body {
+  color: var(--workora-foreground);
+  font-family: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.login-pf-page {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(37, 99, 235, 0.08), transparent 38%),
+    radial-gradient(ellipse at 90% 90%, rgba(124, 58, 237, 0.07), transparent 36%),
+    var(--workora-background);
+}
+
+#kc-header {
+  width: 100%;
+  margin: 0 auto 24px;
+  color: var(--workora-foreground);
+}
+
+#kc-header-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  color: #0f172a;
-  font-family: "Inter", "Segoe UI", sans-serif;
-}
-
-.workora-verification-card__panel {
-  width: min(100%, 420px);
-  padding: 40px 32px;
-  text-align: center;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.08);
-  animation: workora-verification-fade-up 240ms ease-out;
-}
-
-.workora-verification-card__logo {
-  margin-bottom: 28px;
-  color: #4f46e5;
+  gap: 10px;
+  padding: 0;
+  color: var(--workora-foreground);
   font-size: 22px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.03em;
+  text-transform: none;
 }
 
-.workora-verification-card__icon {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 24px;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  background: #16a34a;
-  border-radius: 50%;
-  font-size: 38px;
-  animation: workora-verification-pop 420ms ease-out;
+#kc-header-wrapper::before {
+  width: 36px;
+  height: 36px;
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  background: url("../img/workora-mark.png") center / contain no-repeat;
 }
 
-.workora-verification-card h1 {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.2;
+.login-pf-page > .card-pf,
+#kc-content-wrapper .card-pf {
+  width: min(100%, 440px);
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 32px;
+  overflow: hidden;
+  border: 1px solid var(--workora-border);
+  border-radius: 16px;
+  background: var(--workora-card);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
-.workora-verification-card p {
-  margin: 12px 0 0;
-  color: #64748b;
+.login-pf-page .login-pf-header {
+  margin-bottom: 22px;
+}
+
+.login-pf-page .login-pf-header h1,
+.login-pf-page .login-pf-header .login-pf-header-title {
+  color: var(--workora-foreground);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.login-pf-page .login-pf-header p,
+.instruction,
+.subtitle,
+.login-pf-page .login-pf-signup {
+  color: var(--workora-muted);
   line-height: 1.6;
 }
 
-.workora-verification-card__progress {
-  height: 4px;
-  margin-top: 28px;
+.login-pf-page .form-group {
+  margin-bottom: 18px;
+}
+
+.login-pf-page label,
+.login-pf-page .control-label {
+  margin-bottom: 7px;
+  color: var(--workora-foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-pf-page input[type="text"],
+.login-pf-page input[type="email"],
+.login-pf-page input[type="password"],
+.login-pf-page input[type="tel"],
+.login-pf-page select,
+.login-pf-page textarea {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--workora-border);
+  border-radius: 8px;
+  background-color: var(--workora-card);
+  color: var(--workora-foreground);
+  box-shadow: none;
+  font: inherit;
+  font-size: 14px;
+}
+
+.login-pf-page input:focus,
+.login-pf-page select:focus,
+.login-pf-page textarea:focus {
+  border-color: var(--workora-primary);
+  outline: 3px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.login-pf-page .pf-c-input-group .pf-c-form-control {
+  min-width: 0;
+  border-radius: 8px 0 0 8px;
+  background-color: var(--workora-card);
+  color: var(--workora-foreground);
+}
+
+.login-pf-page .pf-c-input-group {
   overflow: hidden;
-  background: #e2e8f0;
-  border-radius: 999px;
+  border-radius: 8px;
+  background: var(--workora-card);
+  color: var(--workora-foreground);
 }
 
-.workora-verification-card__progress::after {
-  display: block;
-  width: 100%;
-  height: 100%;
-  content: "";
-  background: #4f46e5;
-  transform: scaleX(0);
-  transform-origin: left;
-  animation: workora-verification-progress 3s linear forwards;
+.login-pf-page .pf-c-input-group .pf-c-button.pf-m-control {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--workora-border);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--workora-background);
+  color: var(--workora-muted);
+  box-shadow: none;
 }
 
-@keyframes workora-verification-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+.login-pf-page .pf-c-input-group .pf-c-button.pf-m-control:hover {
+  background: var(--workora-border);
+  color: var(--workora-foreground);
+}
+
+.login-pf-page input[type="checkbox"],
+.login-pf-page input[type="radio"] {
+  accent-color: var(--workora-primary);
+}
+
+.login-pf-page a {
+  color: var(--workora-primary);
+  font-weight: 500;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.login-pf-page a:hover {
+  color: var(--workora-primary-hover);
+}
+
+.login-pf-page button,
+.login-pf-page input[type="submit"],
+.login-pf-page .pf-c-button.pf-m-primary,
+.login-pf-page .btn-primary {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--workora-primary);
+  border-radius: 8px;
+  background: var(--workora-primary);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.login-pf-page button:hover,
+.login-pf-page input[type="submit"]:hover,
+.login-pf-page .pf-c-button.pf-m-primary:hover,
+.login-pf-page .btn-primary:hover {
+  border-color: var(--workora-primary-hover);
+  background: var(--workora-primary-hover);
+  color: #ffffff;
+}
+
+.login-pf-page button:focus-visible,
+.login-pf-page input[type="submit"]:focus-visible,
+.login-pf-page a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 3px;
+}
+
+.login-pf-page .alert,
+.login-pf-page .pf-c-alert {
+  box-sizing: border-box;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.login-pf-page .alert-error,
+.login-pf-page .pf-c-alert.pf-m-danger {
+  border: 1px solid color-mix(in srgb, var(--workora-danger) 24%, transparent);
+  border-left: 4px solid var(--workora-danger);
+  background: var(--workora-danger-background);
+  color: var(--workora-danger);
+}
+
+.login-pf-page .alert-success,
+.login-pf-page .pf-c-alert.pf-m-success {
+  border: 1px solid color-mix(in srgb, var(--workora-success) 24%, transparent);
+  border-left: 4px solid var(--workora-success);
+  background: var(--workora-success-background);
+  color: var(--workora-success);
+}
+
+.login-pf-page .alert-info,
+.login-pf-page .pf-c-alert.pf-m-info {
+  border: 1px solid color-mix(in srgb, var(--workora-primary) 24%, transparent);
+  border-left: 4px solid var(--workora-primary);
+  background: var(--workora-info-background);
+  color: var(--workora-foreground);
+}
+
+.login-pf-page .kc-feedback-text,
+.login-pf-page .pf-c-form__helper-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .login-pf-page {
+    padding: 20px 12px;
+    justify-content: flex-start;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  #kc-header {
+    margin-bottom: 16px;
+  }
+
+  .login-pf-page > .card-pf,
+  #kc-content-wrapper .card-pf {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+
+  .login-pf-page .login-pf-header h1,
+  .login-pf-page .login-pf-header .login-pf-header-title {
+    font-size: 21px;
   }
 }
 
-@keyframes workora-verification-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.65);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --workora-background: #0f172a;
+    --workora-card: #111c31;
+    --workora-foreground: #f8fafc;
+    --workora-muted: #cbd5e1;
+    --workora-border: #334155;
+    --workora-primary: #60a5fa;
+    --workora-primary-hover: #93c5fd;
+    --workora-danger: #fca5a5;
+    --workora-danger-background: #3b1d26;
+    --workora-success: #86efac;
+    --workora-success-background: #123126;
+    --workora-info-background: #172b47;
   }
-  70% {
-    transform: scale(1.08);
+
+  .login-pf-page {
+    background:
+      radial-gradient(ellipse at 15% 10%, rgba(37, 99, 235, 0.16), transparent 38%),
+      radial-gradient(ellipse at 90% 90%, rgba(124, 58, 237, 0.13), transparent 36%),
+      var(--workora-background);
   }
-  100% {
-    opacity: 1;
-    transform: scale(1);
+
+  .card-pf {
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
   }
+
 }
 
-@keyframes workora-verification-progress {
-  to {
-    transform: scaleX(1);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

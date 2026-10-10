@@ -196,6 +196,13 @@ hard-coded in Compose. The
 `workora-files` bucket is created automatically and remains private; application
 clients use short-lived presigned URLs.
 
+The MinIO Community Edition image is built locally from the pinned upstream
+source tags in `tools/minio/Dockerfile`, because upstream no longer publishes
+Community Edition container images. This legacy Community Edition is no longer
+maintained and is intended only for local development. The first
+`docker compose up -d minio minio-init` builds MinIO and `mc` from source and
+may take several minutes; it then starts MinIO and creates the bucket.
+
 File upload flow:
 
 1. Call the authenticated service endpoint

@@ -5,6 +5,7 @@ import {
   CheckCircle, XCircle, Clock, Paperclip, Upload, Trash2, Eye,
   FileText, Image as ImageIcon, X, Download,
 } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { bugApi, type BugReport, type BugEvidence } from '@/lib/api/bugs';
@@ -112,9 +113,9 @@ function EvidenceModal({ bug, onClose, onEvidenceChanged }: EvidenceModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-lg max-h-[90vh] flex flex-col fade-scale-in">
+      <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-card shadow-modal fade-scale-in">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-border flex-shrink-0">
           <div className="flex-1 min-w-0 pr-4">
@@ -291,9 +292,9 @@ function CreateBugModal({ phases, onClose, onCreated }: CreateBugModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-md max-h-[90vh] flex flex-col fade-scale-in">
+      <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-card shadow-modal fade-scale-in">
         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
           <div>
             <h2 className="text-base font-bold text-foreground">Report Bug</h2>
@@ -482,7 +483,7 @@ export default function BugsContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Search bug reports…" value={search} onChange={e => setSearch(e.target.value)} className="input-base pl-8 text-sm" />
+          <input type="text" placeholder="Search bug reports…" value={search} onChange={e => setSearch(e.target.value)} className="input-base input-search text-sm" />
         </div>
         <div className="flex gap-1 p-1 bg-muted rounded-lg overflow-x-auto">
           {['ALL', 'OPEN', 'TRIAGED', 'ACCEPTED', 'RESOLVED', 'CLOSED'].map(s => (
@@ -548,36 +549,42 @@ export default function BugsContent() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="relative">
-                        <button onClick={() => setActiveMenu(activeMenu === bug.id ? null : bug.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all">
-                          <MoreHorizontal size={15} />
-                        </button>
-                        {activeMenu === bug.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
-                            <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                              <button
-                                onClick={() => { setEvidenceBug(bug); setActiveMenu(null); }}
-                                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
-                              >
-                                <Paperclip size={12} />View Evidence
-                                {(bug.evidenceCount ?? 0) > 0 && (
-                                  <span className="ml-auto bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-semibold">{bug.evidenceCount}</span>
-                                )}
-                              </button>
-                              <button
-                                onClick={() => { setEvidenceBug(bug); setActiveMenu(null); }}
-                                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
-                              >
-                                <Upload size={12} />Attach Evidence
-                              </button>
-                              <div className="border-t border-border my-1" />
-                              {bug.status === 'OPEN' && <button onClick={() => handleAction(bug.id, 'accept')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-green-600 hover:bg-green-50 transition-colors"><CheckCircle size={12} />Accept</button>}
-                              {(bug.status === 'OPEN' || bug.status === 'TRIAGED') && <button onClick={() => handleAction(bug.id, 'reject')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"><XCircle size={12} />Reject</button>}
-                              {bug.status === 'ACCEPTED' && <button onClick={() => handleAction(bug.id, 'resolve')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-blue-600 hover:bg-blue-50 transition-colors"><CheckCircle size={12} />Resolve</button>}
-                              {bug.status !== 'CLOSED' && <button onClick={() => handleAction(bug.id, 'close')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:bg-muted transition-colors">Close</button>}
-                            </div>
-                          </>
-                        )}
+                        <FloatingMenu
+                          open={activeMenu === bug.id}
+                          onOpenChange={(open) => setActiveMenu(open ? bug.id : null)}
+                          widthClassName="w-44"
+                          trigger={(triggerProps) => (
+                            <button
+                              {...triggerProps}
+                              type="button"
+                              aria-label={`Actions for ${bug.title}`}
+                              className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all"
+                            >
+                              <MoreHorizontal size={15} />
+                            </button>
+                          )}
+                        >
+                          <button
+                            onClick={() => setEvidenceBug(bug)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Paperclip size={12} />View Evidence
+                            {(bug.evidenceCount ?? 0) > 0 && (
+                              <span className="ml-auto bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-semibold">{bug.evidenceCount}</span>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setEvidenceBug(bug)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Upload size={12} />Attach Evidence
+                          </button>
+                          <div className="border-t border-border my-1" />
+                          {bug.status === 'OPEN' && <button onClick={() => handleAction(bug.id, 'accept')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-green-600 hover:bg-green-50 transition-colors"><CheckCircle size={12} />Accept</button>}
+                          {(bug.status === 'OPEN' || bug.status === 'TRIAGED') && <button onClick={() => handleAction(bug.id, 'reject')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"><XCircle size={12} />Reject</button>}
+                          {bug.status === 'ACCEPTED' && <button onClick={() => handleAction(bug.id, 'resolve')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-blue-600 hover:bg-blue-50 transition-colors"><CheckCircle size={12} />Resolve</button>}
+                          {bug.status !== 'CLOSED' && <button onClick={() => handleAction(bug.id, 'close')} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:bg-muted transition-colors">Close</button>}
+                        </FloatingMenu>
                       </div>
                     </td>
                   </tr>

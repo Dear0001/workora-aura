@@ -103,7 +103,7 @@ export async function login(
     email: data.email,
     firstName: data.firstName,
     lastName: data.lastName,
-    emailVerified: true,
+    emailVerified: data.emailVerified,
     role: data.role,
   };
 

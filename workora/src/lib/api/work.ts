@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { StorageUpload } from './organization';
 import type { ApiResponse } from './types';
 
 const BASE = '/api/work/api/v1';
@@ -102,6 +103,12 @@ export interface TaskAttachment {
   uploadedAt?: string;
 }
 
+export interface CreateTaskAttachmentRequest {
+  fileKey: string;
+  fileName: string;
+  mimeType: string;
+}
+
 export interface WorkspaceSummary {
   totalTasks: number;
   openTasks: number;
@@ -159,11 +166,8 @@ export const workApi = {
     return res.data;
   },
 
-  deleteTask: async (taskId: string): Promise<ApiResponse<Task>> => {
-    const res = await apiClient.patch<ApiResponse<Task>>(`${BASE}/tasks/${taskId}/status`, {
-      status: 'CANCELLED',
-      reason: 'Cancelled by task manager',
-    });
+  archiveTask: async (taskId: string): Promise<ApiResponse<void>> => {
+    const res = await apiClient.delete<ApiResponse<void>>(`${BASE}/tasks/${taskId}`);
     return res.data;
   },
 
@@ -208,22 +212,64 @@ export const workApi = {
 
   // ── Attachments ───────────────────────────────────────────────────────────
 
+  createAttachmentUpload: async (
+    taskId: string,
+    data: { fileName: string; contentType: string }
+  ): Promise<ApiResponse<StorageUpload>> => {
+    const res = await apiClient.post<ApiResponse<StorageUpload>>(
+      `${BASE}/tasks/${taskId}/attachments/uploads`,
+      data
+    );
+    return res.data;
+  },
+
   listAttachments: async (taskId: string): Promise<ApiResponse<TaskAttachment[]>> => {
     const res = await apiClient.get<ApiResponse<TaskAttachment[]>>(`${BASE}/tasks/${taskId}/attachments`);
     return res.data;
   },
 
-  uploadAttachment: async (taskId: string, formData: FormData): Promise<ApiResponse<TaskAttachment>> => {
+  uploadAttachment: async (
+    taskId: string,
+    data: CreateTaskAttachmentRequest
+  ): Promise<ApiResponse<TaskAttachment>> => {
     const res = await apiClient.post<ApiResponse<TaskAttachment>>(
       `${BASE}/tasks/${taskId}/attachments`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
+      data
     );
     return res.data;
   },
 
   removeAttachment: async (taskId: string, attachmentId: string): Promise<ApiResponse<string>> => {
     const res = await apiClient.delete<ApiResponse<string>>(`${BASE}/tasks/${taskId}/attachments/${attachmentId}`);
+    return res.data;
+  },
+
+  uploadTaskFile: async (taskId: string, file: File): Promise<ApiResponse<TaskAttachment>> => {
+    const contentType = file.type || 'application/octet-stream';
+    const upload = await workApi.createAttachmentUpload(taskId, {
+      fileName: file.name,
+      contentType,
+    });
+    const response = await fetch(upload.data.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file,
+    });
+    if (!response.ok) throw new Error(`File upload failed (${response.status})`);
+    return workApi.uploadAttachment(taskId, {
+      fileKey: upload.data.key,
+      fileName: file.name,
+      mimeType: contentType,
+    });
+  },
+
+  getAttachmentDownloadUrl: async (
+    taskId: string,
+    attachmentId: string
+  ): Promise<ApiResponse<{ downloadUrl: string }>> => {
+    const res = await apiClient.get<ApiResponse<{ downloadUrl: string }>>(
+      `${BASE}/tasks/${taskId}/attachments/${attachmentId}/download`
+    );
     return res.data;
   },
 

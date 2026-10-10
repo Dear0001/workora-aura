@@ -19,6 +19,9 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "keycloak_user_id", unique = true)
+    private UUID keycloakUserId;
+
     @Column(nullable = false, unique = true)
     private String email;
 
@@ -52,6 +55,8 @@ public class User implements UserDetails {
 
     @Column(nullable = false)
     private boolean emailVerified = false;
+
+    private Instant lastVerificationEmailSentAt;
 
     @Column(length = 512)
     private String emailVerificationToken;
@@ -87,8 +92,20 @@ public class User implements UserDetails {
         return id;
     }
 
+    public UUID getKeycloakUserId() {
+        return keycloakUserId;
+    }
+
+    public void setKeycloakUserId(UUID keycloakUserId) {
+        this.keycloakUserId = keycloakUserId;
+    }
+
     public String getEmail() {
         return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getFirstName() {
@@ -169,6 +186,14 @@ public class User implements UserDetails {
 
     public void setEmailVerified(boolean emailVerified) {
         this.emailVerified = emailVerified;
+    }
+
+    public Instant getLastVerificationEmailSentAt() {
+        return lastVerificationEmailSentAt;
+    }
+
+    public void setLastVerificationEmailSentAt(Instant lastVerificationEmailSentAt) {
+        this.lastVerificationEmailSentAt = lastVerificationEmailSentAt;
     }
 
     public String getEmailVerificationToken() {

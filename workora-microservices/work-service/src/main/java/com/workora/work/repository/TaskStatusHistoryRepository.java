@@ -11,5 +11,7 @@ public interface TaskStatusHistoryRepository extends JpaRepository<TaskStatusHis
 
     List<TaskStatusHistory> findByTaskIdOrderByChangedAtAsc(UUID taskId);
 
+    List<TaskStatusHistory> findByTaskId(UUID taskId);
+
     Optional<TaskStatusHistory> findFirstByTaskIdOrderByChangedAtDesc(UUID taskId);
 }

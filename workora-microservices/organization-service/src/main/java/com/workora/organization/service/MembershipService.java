@@ -1,6 +1,7 @@
 package com.workora.organization.service;
 
 import com.workora.organization.dto.ChangeRoleRequest;
+import com.workora.organization.dto.DepartmentRoleAssignmentResponse;
 import com.workora.organization.entity.DepartmentMembership;
 import com.workora.organization.entity.DepartmentRole;
 import com.workora.organization.dto.MemberResponse;
@@ -32,7 +33,9 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.UUID;
+import java.util.Set;
 
 @Service
 public class MembershipService {
@@ -112,33 +115,63 @@ public class MembershipService {
     }
 
     @Transactional(readOnly = true)
+    public Set<UUID> departmentIdsForMember(UUID companyId, UUID userId) {
+        Membership membership = requireActiveMembership(companyId, userId);
+        return Set.copyOf(departmentIdsForMembership(membership));
+    }
+
+    @Transactional(readOnly = true)
+    public void requireCanViewDepartment(UUID companyId, UUID departmentId, UUID userId) {
+        Membership membership = requireActiveMembership(companyId, userId);
+        if (membership.getRole().isOwnerOrAdmin()) {
+            return;
+        }
+        boolean assignedByDepartmentRole = departmentMembershipRepository != null
+                && departmentMembershipRepository.existsByMembership_IdAndDepartmentId(
+                        membership.getId(), departmentId);
+        if (!departmentId.equals(membership.getDepartmentId()) && !assignedByDepartmentRole) {
+            throw new ForbiddenException(
+                    "You are not assigned to this department",
+                    "DEPARTMENT_SCOPE_DENIED");
+        }
+    }
+
+    @Transactional(readOnly = true)
     public List<MemberResponse> listMembers(UUID companyId, UUID actorId, String search) {
-        requireActiveMembership(companyId, actorId);
+        Membership actor = requireActiveMembership(companyId, actorId);
         List<Membership> memberships = (search == null || search.isBlank())
                 ? membershipRepository.findByCompanyIdAndStatusAndRoleNotOrderByCreatedAtAsc(
                         companyId, MembershipStatus.ACTIVE, CompanyRole.OWNER)
                 : membershipRepository.findByCompanyIdAndStatusAndRoleNotAndEmailContainingIgnoreCase(
                         companyId, MembershipStatus.ACTIVE, CompanyRole.OWNER, search.trim());
-        return memberships.stream().map(mapper::toResponse).toList();
+        Set<UUID> visibleDepartmentIds = actor.getRole().isOwnerOrAdmin()
+                ? Set.of() : departmentIdsForMembership(actor);
+        Map<UUID, Set<UUID>> departmentsByMembership = new java.util.HashMap<>();
+        if (!actor.getRole().isOwnerOrAdmin()) {
+            Set<UUID> membershipIds = memberships.stream().map(Membership::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (departmentMembershipRepository != null && !membershipIds.isEmpty()) {
+                departmentMembershipRepository.findByMembership_IdIn(List.copyOf(membershipIds)).forEach(assignment ->
+                        departmentsByMembership.computeIfAbsent(
+                                assignment.getMembership().getId(), ignored -> new LinkedHashSet<>())
+                                .add(assignment.getDepartmentId()));
+            }
+            memberships = memberships.stream()
+                    .filter(member -> sharesDepartment(member, visibleDepartmentIds,
+                            departmentsByMembership.getOrDefault(member.getId(), Set.of())))
+                    .toList();
+        }
+        if (actor.getRole().isOwnerOrAdmin()) {
+            return memberships.stream().map(mapper::toResponse).toList();
+        }
+        return memberships.stream()
+                .map(member -> toScopedMemberResponse(member, visibleDepartmentIds))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<MemberResponse> listMembers(UUID companyId, UUID actorId) {
         return listMembers(companyId, actorId, null);
-    }
-
-    @Transactional(readOnly = true)
-    public List<MemberResponse> listMembersByDepartment(UUID departmentId) {
-        Map<UUID, Membership> members = new java.util.LinkedHashMap<>();
-        membershipRepository.findByDepartmentIdAndStatus(departmentId, MembershipStatus.ACTIVE)
-                .forEach(member -> members.put(member.getId(), member));
-        if (departmentMembershipRepository != null) {
-            departmentMembershipRepository.findByDepartmentId(departmentId).stream()
-                    .map(DepartmentMembership::getMembership)
-                    .filter(member -> member.getStatus() == MembershipStatus.ACTIVE)
-                    .forEach(member -> members.put(member.getId(), member));
-        }
-        return members.values().stream().map(mapper::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -148,11 +181,72 @@ public class MembershipService {
 
     @Transactional(readOnly = true)
     public MemberResponse getMember(UUID companyId, UUID targetUserId, UUID actorId) {
-        requireActiveMembership(companyId, actorId);
+        Membership actor = requireActiveMembership(companyId, actorId);
         Membership target = membershipRepository
                 .findByCompanyIdAndUserIdAndStatus(companyId, targetUserId, MembershipStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Member not found in this company"));
-        return mapper.toResponse(target);
+        if (!actor.getRole().isOwnerOrAdmin()) {
+            Set<UUID> visibleDepartmentIds = departmentIdsForMembership(actor);
+            Set<UUID> targetDepartmentIds = departmentIdsForMembership(target);
+            if (targetDepartmentIds.stream().noneMatch(visibleDepartmentIds::contains)) {
+                throw new NotFoundException("Member not found in this company");
+            }
+        }
+        if (actor.getRole().isOwnerOrAdmin()) {
+            return mapper.toResponse(target);
+        }
+        return toScopedMemberResponse(target, departmentIdsForMembership(actor));
+    }
+
+    @Transactional(readOnly = true)
+    public List<MemberResponse> listMembersByDepartment(UUID departmentId, UUID companyId, UUID actorId) {
+        Membership actor = requireActiveMembership(companyId, actorId);
+        requireCanViewDepartment(companyId, departmentId, actorId);
+        Map<UUID, Membership> members = new java.util.LinkedHashMap<>();
+        membershipRepository.findByDepartmentIdAndStatus(departmentId, MembershipStatus.ACTIVE)
+                .forEach(member -> members.put(member.getId(), member));
+        if (departmentMembershipRepository != null) {
+            departmentMembershipRepository.findByDepartmentId(departmentId).stream()
+                    .map(DepartmentMembership::getMembership)
+                    .filter(member -> member.getStatus() == MembershipStatus.ACTIVE)
+                    .forEach(member -> members.put(member.getId(), member));
+        }
+        return members.values().stream()
+                .map(member -> actor.getRole().isOwnerOrAdmin()
+                        ? mapper.toResponse(member)
+                        : toScopedMemberResponse(member, Set.of(departmentId)))
+                .toList();
+    }
+
+    private Set<UUID> departmentIdsForMembership(Membership membership) {
+        Set<UUID> departmentIds = new LinkedHashSet<>();
+        if (membership.getDepartmentId() != null) {
+            departmentIds.add(membership.getDepartmentId());
+        }
+        if (departmentMembershipRepository != null) {
+            departmentMembershipRepository.findByMembership_IdIn(List.of(membership.getId())).stream()
+                    .map(DepartmentMembership::getDepartmentId)
+                    .forEach(departmentIds::add);
+        }
+        return departmentIds;
+    }
+
+    private MemberResponse toScopedMemberResponse(
+            Membership membership, Set<UUID> visibleDepartmentIds) {
+        MemberResponse response = mapper.toResponse(membership);
+        List<DepartmentRoleAssignmentResponse> assignments = response.departmentMemberships().stream()
+                .filter(assignment -> visibleDepartmentIds.contains(assignment.departmentId()))
+                .toList();
+        UUID legacyDepartmentId = response.departmentId() != null
+                && visibleDepartmentIds.contains(response.departmentId()) ? response.departmentId() : null;
+        return new MemberResponse(response.membershipId(), response.userId(), response.email(), response.role(),
+                legacyDepartmentId, assignments, response.status(), response.createdAt());
+    }
+
+    private boolean sharesDepartment(
+            Membership member, Set<UUID> visibleDepartmentIds, Set<UUID> assignedDepartmentIds) {
+        return (member.getDepartmentId() != null && visibleDepartmentIds.contains(member.getDepartmentId()))
+                || assignedDepartmentIds.stream().anyMatch(visibleDepartmentIds::contains);
     }
 
     @Transactional

@@ -110,7 +110,8 @@ class TaskServiceTest {
         Task first = taskManagedBy(managerId, UUID.randomUUID());
         Task second = taskManagedBy(managerId, UUID.randomUUID());
         when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
-        when(taskRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)).thenReturn(List.of(first, second));
+        when(taskRepository.findByCompanyIdAndArchivedAtIsNullOrderByCreatedAtDesc(companyId))
+                .thenReturn(List.of(first, second));
 
         List<TaskResponse> tasks = service.listForCompany(companyId, manager);
 
@@ -125,7 +126,7 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> service.listForCompany(companyId, caller))
                 .isInstanceOf(ForbiddenException.class);
-        verify(taskRepository, never()).findByCompanyIdOrderByCreatedAtDesc(companyId);
+        verify(taskRepository, never()).findByCompanyIdAndArchivedAtIsNullOrderByCreatedAtDesc(companyId);
     }
 
     @Test
@@ -229,7 +230,6 @@ class TaskServiceTest {
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
         when(projectClient.resolvePhase(phaseId)).thenReturn(context());
-        when(taskAssigneeRepository.existsByTaskIdAndUserIdAndRemovedAtIsNull(taskId, developerId)).thenReturn(false);
         when(organizationClient.member(companyId, developerId))
                 .thenReturn(new CallerMembership("DEVELOPER", UUID.randomUUID()));
 
@@ -240,6 +240,54 @@ class TaskServiceTest {
                 .isEqualTo("TASK_ASSIGNEE_NOT_ELIGIBLE");
 
         verify(taskAssigneeRepository, never()).save(any(TaskAssignee.class));
+    }
+
+    @Test
+    void addAssignee_rejectsTaskCreatorAssigningThemselves() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+        when(projectClient.resolvePhase(phaseId)).thenReturn(context());
+
+        assertThatThrownBy(() -> service.addAssignee(
+                taskId, manager, new com.workora.work.dto.AssigneeRequest(managerId)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("You cannot assign a task you created to yourself. Please select another eligible member.")
+                .extracting(ex -> ((ForbiddenException) ex).getCode())
+                .isEqualTo("TASK_CREATOR_SELF_ASSIGNMENT_DENIED");
+
+        verify(organizationClient, never()).member(companyId, managerId);
+        verify(taskAssigneeRepository, never()).save(any(TaskAssignee.class));
+    }
+
+    @Test
+    void archive_allowsOwnerAndHidesTask() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId)).thenReturn(new CallerMembership("OWNER", null));
+
+        service.archive(taskId, manager);
+
+        assertThat(task.isArchived()).isTrue();
+        verify(taskRepository).save(task);
+    }
+
+    @Test
+    void archive_rejectsProjectManager() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(organizationClient.myMembership(companyId))
+                .thenReturn(new CallerMembership("PROJECT_MANAGER", departmentId));
+
+        assertThatThrownBy(() -> service.archive(taskId, manager))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting(ex -> ((ForbiddenException) ex).getCode())
+                .isEqualTo("TASK_ARCHIVE_DENIED");
+
+        verify(taskRepository, never()).save(task);
     }
 
     @Test
@@ -287,6 +335,18 @@ class TaskServiceTest {
                 .thenReturn(false);
 
         assertThatThrownBy(() -> service.get(taskId, caller))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Task not found");
+    }
+
+    @Test
+    void load_hidesArchivedTask() {
+        UUID taskId = UUID.randomUUID();
+        Task task = taskManagedBy(managerId, taskId);
+        task.setArchivedAt(java.time.Instant.now());
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        assertThatThrownBy(() -> service.load(taskId))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Task not found");
     }

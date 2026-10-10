@@ -4,6 +4,7 @@ import com.workora.common.dto.ApiResponse;
 import com.workora.organization.dto.AcceptInvitationRequest;
 import com.workora.organization.dto.InvitationRequest;
 import com.workora.organization.dto.InvitationResponse;
+import com.workora.organization.dto.PendingInvitationResponse;
 import com.workora.organization.security.CurrentUser;
 import com.workora.organization.service.InvitationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,7 +52,7 @@ public class InvitationController {
     }
 
     @GetMapping("/invitations/pending")
-    public ResponseEntity<ApiResponse<List<InvitationResponse>>> listPending(
+    public ResponseEntity<ApiResponse<List<PendingInvitationResponse>>> listPending(
             @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(ApiResponse.success(
                 invitationService.listPending(CurrentUser.from(jwt))));

@@ -161,4 +161,11 @@ public class CompanyService {
         return companyRepository.findByIdAndStatus(companyId, CompanyStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Company not found"));
     }
+
+    @Transactional(readOnly = true)
+    public String loadName(UUID companyId) {
+        return companyRepository.findById(companyId)
+                .map(Company::getName)
+                .orElseThrow(() -> new NotFoundException("Company not found"));
+    }
 }

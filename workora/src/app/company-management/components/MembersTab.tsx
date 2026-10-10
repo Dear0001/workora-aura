@@ -11,6 +11,7 @@ import {
   Loader2,
   Shield,
 } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { organizationApi } from '@/lib/api/organization';
 import type { CompanyMember } from '@/lib/api/types';
@@ -40,9 +41,10 @@ type SortDir = 'asc' | 'desc';
 interface Props {
   onInvite: () => void;
   companyId?: string;
+  canManageMembers: boolean;
 }
 
-export default function MembersTab({ onInvite, companyId }: Props) {
+export default function MembersTab({ onInvite, companyId, canManageMembers }: Props) {
   const [members, setMembers] = useState<CompanyMember[]>([]);
   const [loading, setLoading] = useState(Boolean(companyId));
   const [search, setSearch] = useState('');
@@ -190,7 +192,7 @@ export default function MembersTab({ onInvite, companyId }: Props) {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="input-base pl-8 text-sm"
+              className="input-base input-search text-sm"
             />
           </div>
           <select
@@ -210,16 +212,16 @@ export default function MembersTab({ onInvite, companyId }: Props) {
             <option value="BUG_HUNTER">Bug Hunter</option>
             <option value="MEMBER">Member</option>
           </select>
-          <button
+          {canManageMembers && <button
             onClick={onInvite}
             className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold sm:hidden"
           >
             + Invite
-          </button>
+          </button>}
         </div>
 
         {/* Bulk action bar */}
-        {selectedIds.size > 0 && (
+        {canManageMembers && selectedIds.size > 0 && (
           <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-lg slide-up">
             <span className="text-sm font-medium text-primary">{selectedIds.size} selected</span>
             <div className="flex items-center gap-2 ml-auto">
@@ -371,49 +373,42 @@ export default function MembersTab({ onInvite, companyId }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative">
-                          <button
-                            onClick={() =>
-                              setActiveRowMenu(
-                                activeRowMenu === member?.userId ? null : member?.userId
-                              )
-                            }
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all"
+                          {canManageMembers && <FloatingMenu
+                            open={activeRowMenu === member.userId}
+                            onOpenChange={(open) => setActiveRowMenu(open ? member.userId : null)}
+                            widthClassName="w-40"
+                            trigger={(triggerProps) => (
+                              <button
+                                {...triggerProps}
+                                type="button"
+                                aria-label={`Actions for ${member.firstName} ${member.lastName}`}
+                                className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all"
+                              >
+                                <MoreHorizontal size={15} />
+                              </button>
+                            )}
                           >
-                            <MoreHorizontal size={15} />
-                          </button>
-                          {activeRowMenu === member?.userId && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setActiveRowMenu(null)}
-                              />
-                              <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                                <button
-                                  onClick={() => {
-                                    setRoleModalMember(member);
-                                    setActiveRowMenu(null);
-                                  }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
-                                >
-                                  <Shield size={12} className="text-muted-foreground" />
-                                  Assign Role
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleRemoveMember(
-                                      member?.userId,
-                                      `${member?.firstName} ${member?.lastName}`
-                                    )
-                                  }
-                                  disabled={member.userId === currentUserId}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  <UserMinus size={12} />
-                                  Remove
-                                </button>
-                              </div>
-                            </>
-                          )}
+                            <button
+                              onClick={() => setRoleModalMember(member)}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Shield size={12} className="text-muted-foreground" />
+                              Assign Role
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleRemoveMember(
+                                  member.userId,
+                                  `${member.firstName} ${member.lastName}`
+                                )
+                              }
+                              disabled={member.userId === currentUserId}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <UserMinus size={12} />
+                              Remove
+                            </button>
+                          </FloatingMenu>}
                         </div>
                       </td>
                     </tr>

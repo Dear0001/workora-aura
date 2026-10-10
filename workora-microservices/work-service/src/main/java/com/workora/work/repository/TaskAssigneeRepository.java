@@ -11,6 +11,8 @@ public interface TaskAssigneeRepository extends JpaRepository<TaskAssignee, UUID
 
     List<TaskAssignee> findByTaskIdAndRemovedAtIsNull(UUID taskId);
 
+    List<TaskAssignee> findByTaskId(UUID taskId);
+
     List<TaskAssignee> findByUserIdAndRemovedAtIsNull(UUID userId);
 
     Optional<TaskAssignee> findByTaskIdAndUserIdAndRemovedAtIsNull(UUID taskId, UUID userId);

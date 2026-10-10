@@ -16,4 +16,6 @@ public interface DepartmentMembershipRepository extends JpaRepository<Department
     Optional<DepartmentMembership> findByMembership_IdAndDepartmentId(UUID membershipId, UUID departmentId);
 
     boolean existsByMembership_IdAndDepartmentIdAndRole(UUID membershipId, UUID departmentId, DepartmentRole role);
+
+    boolean existsByMembership_IdAndDepartmentId(UUID membershipId, UUID departmentId);
 }

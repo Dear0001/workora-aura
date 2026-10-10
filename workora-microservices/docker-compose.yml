@@ -33,7 +33,10 @@ services:
       - "9411:9411"
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
+    image: workora-minio-local:dev
+    pull_policy: build
+    build:
+      context: ./tools/minio
     container_name: workora-minio
     command: server /data --console-address ":9001"
     environment:
@@ -51,7 +54,7 @@ services:
       retries: 20
 
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: workora-minio-local:dev
     container_name: workora-minio-init
     depends_on:
       minio:

@@ -48,9 +48,9 @@ function CreatePhaseModal({ projectId, onClose, onCreated }: CreatePhaseModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-md fade-scale-in">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
             <h2 className="text-base font-bold text-foreground">New Phase</h2>

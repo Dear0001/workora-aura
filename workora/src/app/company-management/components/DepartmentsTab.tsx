@@ -1,6 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Users, MoreHorizontal, Edit2, Trash2, FolderKanban, ChevronRight, Shield } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
@@ -12,12 +13,13 @@ import DepartmentRoleModal from './DepartmentRoleModal';
 interface Props {
   onCreateDept: () => void;
   companyId?: string;
+  canManageDepartments: boolean;
   onCreated?: () => void;
 }
 
 const COLORS = ['bg-blue-500', 'bg-violet-500', 'bg-indigo-500', 'bg-amber-500', 'bg-green-500', 'bg-rose-500'];
 
-export default function DepartmentsTab({ onCreateDept, companyId, onCreated }: Props) {
+export default function DepartmentsTab({ onCreateDept, companyId, canManageDepartments, onCreated }: Props) {
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -97,40 +99,43 @@ export default function DepartmentsTab({ onCreateDept, companyId, onCreated }: P
                 </div>
               </div>
               <div className="relative" onClick={e => e.stopPropagation()}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === dept.id ? null : dept.id); }}
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                {canManageDepartments && <FloatingMenu
+                  open={activeMenu === dept.id}
+                  onOpenChange={(open) => setActiveMenu(open ? dept.id : null)}
+                  widthClassName="w-44"
+                  trigger={(triggerProps) => (
+                    <button
+                      {...triggerProps}
+                      type="button"
+                      aria-label={`Actions for ${dept.name}`}
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                    >
+                      <MoreHorizontal size={15} />
+                    </button>
+                  )}
                 >
-                  <MoreHorizontal size={15} />
-                </button>
-                {activeMenu === dept.id && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveMenu(null); }} />
-                    <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setRoleModalDept(dept); setActiveMenu(null); }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
-                      >
-                        <Shield size={12} className="text-muted-foreground" />
-                        Manage Members
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditingDept(dept); setActiveMenu(null); }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
-                      >
-                        <Edit2 size={12} className="text-muted-foreground" />
-                        Edit Department
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, dept.id, dept.name)}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 size={12} />
-                        Delete
-                      </button>
-                    </div>
-                  </>
-                )}
+                  <button
+                    onClick={() => setRoleModalDept(dept)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Shield size={12} className="text-muted-foreground" />
+                    Manage Members
+                  </button>
+                  <button
+                    onClick={() => setEditingDept(dept)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Edit2 size={12} className="text-muted-foreground" />
+                    Edit Department
+                  </button>
+                  <button
+                    onClick={(event) => handleDelete(event, dept.id, dept.name)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                </FloatingMenu>}
               </div>
             </div>
 
@@ -158,7 +163,7 @@ export default function DepartmentsTab({ onCreateDept, companyId, onCreated }: P
         ))}
 
         {/* Add department card */}
-        <button
+        {canManageDepartments && <button
           onClick={onCreateDept}
           className="card-elevated p-5 border-dashed border-2 border-border hover:border-primary hover:bg-primary/3 transition-all duration-150 flex flex-col items-center justify-center gap-2 min-h-[160px] group"
         >
@@ -166,7 +171,7 @@ export default function DepartmentsTab({ onCreateDept, companyId, onCreated }: P
             <span className="text-xl text-muted-foreground group-hover:text-primary transition-colors">+</span>
           </div>
           <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">Create Department</span>
-        </button>
+        </button>}
       </div>
 
       {editingDept && (

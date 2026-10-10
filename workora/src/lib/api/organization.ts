@@ -24,20 +24,21 @@ export const storageApi = {
     file: File,
     namespace = 'companies'
   ): Promise<ApiResponse<StorageUpload>> => {
+    const contentType = file.type || 'application/octet-stream';
     const res = await apiClient.post<ApiResponse<StorageUpload>>(
       '/api/organization/api/v1/storage/uploads',
       {
         namespace,
         fileName: file.name,
-        contentType: file.type,
+        contentType,
       }
     );
     await fetch(res.data.data.uploadUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      headers: { 'Content-Type': contentType },
       body: file,
     }).then((response) => {
-      if (!response.ok) throw new Error(`Image upload failed (${response.status})`);
+      if (!response.ok) throw new Error(`File upload failed (${response.status})`);
     });
     return res.data;
   },
@@ -148,7 +149,10 @@ export const organizationApi = {
   },
 
   // DELETE /api/organization/api/v1/departments/{departmentId}
-  deleteDepartment: async (companyId: string, departmentId: string): Promise<ApiResponse<Department>> => {
+  deleteDepartment: async (
+    companyId: string,
+    departmentId: string
+  ): Promise<ApiResponse<Department>> => {
     const res = await apiClient.delete<ApiResponse<Department>>(
       `${BASE}/companies/${companyId}/departments/${departmentId}`
     );
@@ -218,6 +222,12 @@ export const organizationApi = {
     return res.data;
   },
 
+  // GET /api/organization/api/v1/invitations/pending
+  listPendingInvitations: async (): Promise<ApiResponse<Invitation[]>> => {
+    const res = await apiClient.get<ApiResponse<Invitation[]>>(`${BASE}/invitations/pending`);
+    return res.data;
+  },
+
   // POST /api/organization/api/v1/companies/{companyId}/invitations/{invitationId}/accept
   acceptInvitation: async (
     companyId: string,
@@ -253,7 +263,9 @@ export const organizationApi = {
   addDepartmentMember: async (
     departmentId: string,
     userId: string,
-    data?: { role: 'DEPARTMENT_MANAGER' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'BUG_HUNTER' }
+    data?: {
+      role: 'DEPARTMENT_MANAGER' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'BUG_HUNTER';
+    }
   ): Promise<ApiResponse<CompanyMember>> => {
     const res = await apiClient.post<ApiResponse<CompanyMember>>(
       `${BASE}/departments/${departmentId}/members/${userId}`,

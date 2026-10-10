@@ -37,7 +37,14 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
-    defaultValues: { firstName: '', lastName: '', email: '', password: '', confirmPassword: '', terms: false },
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      terms: false,
+    },
   });
 
   const watchedPassword = watch('password', '');
@@ -57,9 +64,12 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
       if (err instanceof AxiosError) {
         const apiMsg = err.response?.data?.message;
         if (apiMsg) message = apiMsg;
-        else if (err.response?.status === 409) message = 'An account with this email already exists.';
-        else if (err.response?.status === 422) message = 'Invalid registration data. Please check your inputs.';
-        else if (!err.response) message = 'Cannot reach the server. Make sure the backend is running on localhost:8080.';
+        else if (err.response?.status === 409)
+          message = 'An account with this email already exists.';
+        else if (err.response?.status === 422)
+          message = 'Invalid registration data. Please check your inputs.';
+        else if (!err.response)
+          message = 'Cannot reach the server. Make sure the backend is running on localhost:8080.';
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -67,24 +77,31 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
     }
   };
 
-  const passedChecks = passwordChecks.filter(c => c.test(watchedPassword)).length;
+  const passedChecks = passwordChecks.filter((c) => c.test(watchedPassword)).length;
   const strengthPercent = (passedChecks / passwordChecks.length) * 100;
   const strengthColor =
-    passedChecks === 0 ? 'bg-border' :
-    passedChecks <= 1 ? 'bg-red-500' :
-    passedChecks <= 2 ? 'bg-amber-500' :
-    passedChecks <= 3 ? 'bg-yellow-400' : 'bg-green-500';
+    passedChecks === 0
+      ? 'bg-border'
+      : passedChecks <= 1
+        ? 'bg-red-500'
+        : passedChecks <= 2
+          ? 'bg-amber-500'
+          : passedChecks <= 3
+            ? 'bg-yellow-400'
+            : 'bg-green-500';
 
   return (
     <div className="fade-in">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-foreground">Create your account</h2>
-        <p className="text-muted-foreground text-sm mt-1">Join thousands of teams using Workora</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Create an account to bring your work together.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Name row */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="reg-first">
               First name
@@ -95,9 +112,15 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               autoComplete="given-name"
               placeholder="Sophea"
               className={`input-base ${errors.firstName ? 'input-error' : ''}`}
+              aria-invalid={Boolean(errors.firstName)}
+              aria-describedby={errors.firstName ? 'reg-first-error' : undefined}
               {...register('firstName', { required: 'Required' })}
             />
-            {errors.firstName && <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>}
+            {errors.firstName && (
+              <p id="reg-first-error" className="mt-1 text-xs text-red-500" role="alert">
+                {errors.firstName.message}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="reg-last">
@@ -109,9 +132,15 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               autoComplete="family-name"
               placeholder="Chan"
               className={`input-base ${errors.lastName ? 'input-error' : ''}`}
+              aria-invalid={Boolean(errors.lastName)}
+              aria-describedby={errors.lastName ? 'reg-last-error' : undefined}
               {...register('lastName', { required: 'Required' })}
             />
-            {errors.lastName && <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>}
+            {errors.lastName && (
+              <p id="reg-last-error" className="mt-1 text-xs text-red-500" role="alert">
+                {errors.lastName.message}
+              </p>
+            )}
           </div>
         </div>
 
@@ -126,19 +155,32 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
             autoComplete="email"
             placeholder="you@company.com"
             className={`input-base ${errors.email ? 'input-error' : ''}`}
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? 'reg-email-error' : undefined}
             {...register('email', {
               required: 'Email is required',
               pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' },
             })}
           />
-          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+          {errors.email && (
+            <p id="reg-email-error" className="mt-1 text-xs text-red-500" role="alert">
+              {errors.email.message}
+            </p>
+          )}
         </div>
 
         {/* Password */}
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="reg-password">
+          <label
+            className="block text-sm font-medium text-foreground mb-1.5"
+            htmlFor="reg-password"
+          >
             Password
           </label>
+          <p id="reg-password-requirements" className="text-xs text-muted-foreground mb-2">
+            Use at least 8 characters, including an uppercase letter, a number, and a special
+            character.
+          </p>
           <div className="relative">
             <input
               id="reg-password"
@@ -146,6 +188,10 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               autoComplete="new-password"
               placeholder="Create a strong password"
               className={`input-base pr-10 ${errors.password ? 'input-error' : ''}`}
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={
+                errors.password ? 'reg-password-error' : 'reg-password-requirements'
+              }
               {...register('password', {
                 required: 'Password is required',
                 minLength: { value: 8, message: 'Minimum 8 characters' },
@@ -155,11 +201,16 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
+          {errors.password && (
+            <p id="reg-password-error" className="mt-1 text-xs text-red-500" role="alert">
+              {errors.password.message}
+            </p>
+          )}
 
           {/* Strength meter */}
           {watchedPassword.length > 0 && (
@@ -175,10 +226,14 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
                   const passed = check.test(watchedPassword);
                   return (
                     <div key={`pwcheck-${i}`} className="flex items-center gap-1">
-                      {passed
-                        ? <CheckCircle2 size={11} className="text-green-500 flex-shrink-0" />
-                        : <XCircle size={11} className="text-muted-foreground flex-shrink-0" />}
-                      <span className={`text-xs ${passed ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {passed ? (
+                        <CheckCircle2 size={11} className="text-green-500 flex-shrink-0" />
+                      ) : (
+                        <XCircle size={11} className="text-muted-foreground flex-shrink-0" />
+                      )}
+                      <span
+                        className={`text-xs ${passed ? 'text-green-600' : 'text-muted-foreground'}`}
+                      >
                         {check.label}
                       </span>
                     </div>
@@ -201,6 +256,8 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               autoComplete="new-password"
               placeholder="Repeat your password"
               className={`input-base pr-10 ${errors.confirmPassword ? 'input-error' : ''}`}
+              aria-invalid={Boolean(errors.confirmPassword)}
+              aria-describedby={errors.confirmPassword ? 'reg-confirm-error' : undefined}
               {...register('confirmPassword', {
                 required: 'Please confirm your password',
                 validate: (v) => v === watchedPassword || 'Passwords do not match',
@@ -210,11 +267,16 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               type="button"
               onClick={() => setShowConfirm(!showConfirm)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showConfirm ? 'Hide password' : 'Show password'}
             >
               {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          {errors.confirmPassword && <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>}
+          {errors.confirmPassword && (
+            <p id="reg-confirm-error" className="mt-1 text-xs text-red-500" role="alert">
+              {errors.confirmPassword.message}
+            </p>
+          )}
         </div>
 
         {/* Terms */}
@@ -224,16 +286,26 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: Props) {
               id="reg-terms"
               type="checkbox"
               className="w-4 h-4 mt-0.5 rounded border-input text-primary"
+              aria-invalid={Boolean(errors.terms)}
+              aria-describedby={errors.terms ? 'reg-terms-error' : undefined}
               {...register('terms', { required: 'You must accept the terms to continue' })}
             />
             <label htmlFor="reg-terms" className="text-sm text-muted-foreground leading-relaxed">
               I agree to Workora&apos;s{' '}
-              <a href="#" className="text-primary hover:underline">Terms of Service</a>
-              {' '}and{' '}
-              <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+              <a href="#" className="text-primary hover:underline">
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a href="#" className="text-primary hover:underline">
+                Privacy Policy
+              </a>
             </label>
           </div>
-          {errors.terms && <p className="mt-1 text-xs text-red-500">{errors.terms.message}</p>}
+          {errors.terms && (
+            <p id="reg-terms-error" className="mt-1 text-xs text-red-500" role="alert">
+              {errors.terms.message}
+            </p>
+          )}
         </div>
 
         <button

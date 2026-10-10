@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.StatObjectArgs;
+import io.minio.StatObjectResponse;
 import io.minio.http.Method;
 
 import java.time.Duration;
@@ -68,6 +70,19 @@ public class StorageObjectService {
         }
     }
 
+    public StoredObjectMetadata inspect(String key) {
+        String safeKey = validateKey(key);
+        try {
+            StatObjectResponse response = minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(safeKey)
+                    .build());
+            return new StoredObjectMetadata(response.size(), response.contentType());
+        } catch (Exception exception) {
+            throw new IllegalStateException("Could not inspect stored object", exception);
+        }
+    }
+
     public void delete(String key) {
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
@@ -100,4 +115,6 @@ public class StorageObjectService {
 
     public record PresignedFileUpload(String key, String uploadUrl, Instant expiresAt,
                                       String contentType) {}
+
+    public record StoredObjectMetadata(long size, String contentType) {}
 }

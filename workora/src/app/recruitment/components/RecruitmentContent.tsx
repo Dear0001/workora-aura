@@ -1,6 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Users, Plus, Search, MoreHorizontal, Loader2, Briefcase, CheckCircle, XCircle, Eye } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { recruitmentApi, type RecruitmentPost, type Application } from '@/lib/api/recruitment';
@@ -48,9 +49,9 @@ function CreatePostModal({ onClose, onCreated }: CreatePostModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-lg fade-scale-in">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div><h2 className="text-base font-bold text-foreground">New Recruitment Post</h2><p className="text-xs text-muted-foreground">Post an open position</p></div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">✕</button>
@@ -120,9 +121,9 @@ function ApplicationsDrawer({ post, onClose }: ApplicationsDrawerProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center p-4 sm:items-center">
       <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-2xl max-h-[80vh] flex flex-col fade-scale-in">
+      <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-modal fade-scale-in">
         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
           <div>
             <h2 className="text-base font-bold text-foreground">Applications — {post.title}</h2>
@@ -250,7 +251,7 @@ export default function RecruitmentContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)} className="input-base pl-8 text-sm" />
+          <input type="text" placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)} className="input-base input-search text-sm" />
         </div>
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           {['ALL', 'OPEN', 'DRAFT', 'CLOSED'].map(s => (
@@ -292,27 +293,33 @@ export default function RecruitmentContent() {
                   </div>
                 </div>
                 <div className="relative flex-shrink-0">
-                  <button onClick={() => setActiveMenu(activeMenu === post.id ? null : post.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all">
-                    <MoreHorizontal size={15} />
-                  </button>
-                  {activeMenu === post.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
-                      <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                        <button onClick={() => { setViewingPost(post); setActiveMenu(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
-                          <Eye size={12} />View Applications
-                        </button>
-                        {post.status === 'OPEN' && (
-                          <button onClick={() => handleClose(post.id, post.title)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 transition-colors">
-                            Close Post
-                          </button>
-                        )}
-                        <button onClick={() => handleDelete(post.id, post.title)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
-                          <XCircle size={12} />Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <FloatingMenu
+                    open={activeMenu === post.id}
+                    onOpenChange={(open) => setActiveMenu(open ? post.id : null)}
+                    widthClassName="w-40"
+                    trigger={(triggerProps) => (
+                      <button
+                        {...triggerProps}
+                        type="button"
+                        aria-label={`Actions for ${post.title}`}
+                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all"
+                      >
+                        <MoreHorizontal size={15} />
+                      </button>
+                    )}
+                  >
+                    <button onClick={() => setViewingPost(post)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
+                      <Eye size={12} />View Applications
+                    </button>
+                    {post.status === 'OPEN' && (
+                      <button onClick={() => handleClose(post.id, post.title)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 transition-colors">
+                        Close Post
+                      </button>
+                    )}
+                    <button onClick={() => handleDelete(post.id, post.title)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                      <XCircle size={12} />Delete
+                    </button>
+                  </FloatingMenu>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2">{post.description || 'No description provided.'}</p>

@@ -350,7 +350,7 @@ export default function ManagerDecisionsContent() {
             placeholder="Search by name, email, or position…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="input-base pl-9 text-sm"
+            className="input-base input-search text-sm"
           />
         </div>
         <div className="flex items-center gap-1.5 bg-muted/50 rounded-lg p-1 border border-border">

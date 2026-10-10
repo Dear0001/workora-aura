@@ -2,6 +2,7 @@ package com.workora.organization.service;
 
 import com.workora.organization.dto.InvitationRequest;
 import com.workora.organization.dto.InvitationResponse;
+import com.workora.organization.dto.PendingInvitationResponse;
 import com.workora.organization.entity.CompanyRole;
 import com.workora.organization.entity.Invitation;
 import com.workora.organization.entity.InvitationStatus;
@@ -100,11 +101,19 @@ public class InvitationService {
     }
 
     @Transactional(readOnly = true)
-    public List<InvitationResponse> listPending(CurrentUser caller) {
+    public List<PendingInvitationResponse> listPending(CurrentUser caller) {
         return invitationRepository.findByEmailAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                         caller.email(), InvitationStatus.PENDING, Instant.now())
                 .stream()
-                .map(mapper::toResponse)
+                .map(invitation -> new PendingInvitationResponse(
+                        invitation.getId(),
+                        invitation.getCompanyId(),
+                        companyService.loadName(invitation.getCompanyId()),
+                        invitation.getEmail(),
+                        invitation.getRole(),
+                        invitation.getDepartmentId(),
+                        invitation.getExpiresAt(),
+                        invitation.getCreatedAt()))
                 .toList();
     }
 

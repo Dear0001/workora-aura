@@ -92,6 +92,14 @@ public class TaskController {
                 taskService.update(taskId, CurrentUser.from(jwt), request)));
     }
 
+    @DeleteMapping("/tasks/{taskId}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @PathVariable UUID taskId,
+            @AuthenticationPrincipal Jwt jwt) {
+        taskService.archive(taskId, CurrentUser.from(jwt));
+        return ResponseEntity.ok(ApiResponse.success("Task archived", null));
+    }
+
     @PatchMapping("/tasks/{taskId}/status")
     public ResponseEntity<ApiResponse<TaskResponse>> changeStatus(
             @PathVariable UUID taskId,

@@ -31,7 +31,9 @@ class KeycloakServiceAdminRoleTest {
                 .andRespond(withSuccess("{\"access_token\":\"service-token\"}", MediaType.APPLICATION_JSON));
         server.expect(requestTo(containsString("/admin/realms/workora/users")))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"keycloak-user-id\"}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(
+                        "[{\"id\":\"keycloak-user-id\",\"email\":\"approved@example.com\"}]",
+                        MediaType.APPLICATION_JSON));
         server.expect(requestTo("http://keycloak/admin/realms/workora/roles/ADMIN"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("{\"id\":\"admin-role-id\",\"name\":\"ADMIN\"}", MediaType.APPLICATION_JSON));

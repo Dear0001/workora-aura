@@ -27,6 +27,7 @@ export interface LoginResponse {
   firstName: string;
   lastName: string;
   role: string;
+  emailVerified: boolean;
 }
 
 export interface RegisterResponse {
@@ -44,6 +45,7 @@ export interface RefreshResponse {
   firstName: string;
   lastName: string;
   role: string;
+  emailVerified: boolean;
 }
 
 export interface VerificationSessionResponse {
@@ -109,15 +111,19 @@ export interface Invitation {
   email: string;
   role: string;
   companyId: string;
+  companyName?: string;
   departmentId?: string;
   status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
   createdAt?: string;
   expiresAt?: string;
 }
 
+export type InviteableCompanyRole =
+  'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'BUG_HUNTER';
+
 export interface InviteMemberRequest {
   email: string;
-  role: string;
+  role: InviteableCompanyRole;
   departmentId?: string;
   message?: string;
 }

@@ -43,13 +43,14 @@ public class AdminAccessRequestService {
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         var existing = userRepository.findByEmail(normalizedEmail);
         if (existing.isEmpty()) {
-            keycloakService.createAdminCandidate(normalizedEmail, firstName, lastName);
+            UUID keycloakUserId = keycloakService.createAdminCandidate(normalizedEmail, firstName, lastName);
             User candidate = new User(
                     normalizedEmail,
                     passwordEncoder.encode(UUID.randomUUID().toString()),
                     firstName == null ? "" : firstName.trim(),
                     lastName == null ? "" : lastName.trim(),
                     Role.USER);
+            candidate.setKeycloakUserId(keycloakUserId);
             existing = java.util.Optional.of(userRepository.save(candidate));
         }
         var candidate = existing.orElseThrow();

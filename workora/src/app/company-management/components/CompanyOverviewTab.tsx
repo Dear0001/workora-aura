@@ -49,14 +49,14 @@ export default function CompanyOverviewTab({ company, onEdit, onDelete }: Props)
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            {onEdit && <button
               type="button"
               onClick={onEdit}
               className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted hover:bg-primary/10 hover:text-primary px-3 py-1.5 rounded-lg transition-all"
             >
               <Edit2 size={12} />
               Edit Profile
-            </button>
+            </button>}
             {onDelete && (
               <button
                 type="button"

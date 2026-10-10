@@ -1,14 +1,17 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckSquare, Plus, Search, MoreHorizontal, Trash2, Loader2, Calendar, Flag } from 'lucide-react';
+import { CheckSquare, Plus, Search, MoreVertical, Archive, Loader2, Calendar, Flag, UserPlus, Upload, X, Paperclip, Pencil } from 'lucide-react';
+import FloatingMenu from '@/components/ui/FloatingMenu';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { getAllowedTaskTransitions, workApi, type Task } from '@/lib/api/work';
-import { projectsApi, type Phase } from '@/lib/api/projects';
+import { getAllowedTaskTransitions, workApi, type Task, type TaskAssignee } from '@/lib/api/work';
+import { projectsApi, type Phase, type Project } from '@/lib/api/projects';
 import { organizationApi } from '@/lib/api/organization';
-import type { Company } from '@/lib/api/types';
+import type { Company, CompanyMember } from '@/lib/api/types';
 import { formatDateOnly } from '@/lib/date';
+import { getTaskFileValidationError, TASK_FILE_ACCEPT } from '@/lib/task-files';
 import Link from 'next/link';
+import { getStoredUser } from '@/lib/auth';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-muted text-muted-foreground border border-border',
@@ -29,41 +32,110 @@ const PRIORITY_COLORS: Record<string, string> = {
   CRITICAL: 'text-red-600',
 };
 
-interface CreateTaskModalProps {
-  phaseId: string;
-  onClose: () => void;
-  onCreated: (task: Task) => void;
+function formatFileSize(size: number): string {
+  return size >= 1024 * 1024
+    ? `${(size / (1024 * 1024)).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(size / 1024))} KB`;
 }
 
-function CreateTaskModal({ phaseId, onClose, onCreated }: CreateTaskModalProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
-  const [dueDate, setDueDate] = useState('');
+interface TaskFormModalProps {
+  phaseId: string;
+  task?: Task;
+  onClose: () => void;
+  onSaved: (task: Task) => void;
+}
+
+function TaskFormModal({ phaseId, task, onClose, onSaved }: TaskFormModalProps) {
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [description, setDescription] = useState(task?.description ?? '');
+  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>(task?.priority ?? 'MEDIUM');
+  const [dueDate, setDueDate] = useState(task?.dueDate ?? '');
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const handleFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files ?? []);
+    const accepted: File[] = [];
+    for (const file of selected) {
+      const error = getTaskFileValidationError(file);
+      if (error) toast.error(`${file.name}: ${error}`);
+      else accepted.push(file);
+    }
+    setFiles(current => [...current, ...accepted]);
+    event.target.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     setLoading(true);
     try {
-      const res = await workApi.createTask(phaseId, { title: title.trim(), description: description || undefined, priority, dueDate: dueDate || undefined });
-      toast.success(`Task "${res.data.title}" created`);
-      onCreated(res.data);
+      const savedTask = task
+        ? (await workApi.updateTask(task.id, {
+            title: title.trim(),
+            description,
+            priority,
+            ...(dueDate ? { dueDate } : {}),
+          })).data
+        : (await workApi.createTask(phaseId, {
+            title: title.trim(),
+            description: description || undefined,
+            priority,
+            dueDate: dueDate || undefined,
+          })).data;
+
+      onSaved(savedTask);
+      if (files.length === 0) {
+        toast.success(`Task "${savedTask.title}" ${task ? 'updated' : 'created'}`);
+        onClose();
+        return;
+      }
+
+      const failedFiles: string[] = [];
+      for (const file of files) {
+        try {
+          await workApi.uploadTaskFile(savedTask.id, file);
+        } catch {
+          failedFiles.push(file.name);
+        }
+      }
+      if (failedFiles.length > 0) {
+        toast.success(`Task "${savedTask.title}" was saved`);
+        toast.error(`Could not attach: ${failedFiles.join(', ')}. Edit the task to retry.`);
+      } else {
+        toast.success(`Task "${savedTask.title}" ${task ? 'updated' : 'created'} with ${files.length} attachment${files.length === 1 ? '' : 's'}`);
+      }
+      onClose();
     } catch (err) {
-      toast.error(err instanceof AxiosError ? (err.response?.data?.message ?? 'Failed to create task') : 'Failed to create task');
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? `Failed to ${task ? 'update' : 'create'} task`)
+        : `Failed to ${task ? 'update' : 'create'} task`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/40 fade-in" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-md fade-scale-in">
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close task form"
+        disabled={loading}
+        className="fixed inset-0 border-0 bg-black/40 p-0 fade-in disabled:cursor-wait"
+        onClick={onClose}
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-form-title"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in"
+      >
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <div><h2 className="text-base font-bold text-foreground">New Task</h2><p className="text-xs text-muted-foreground">Add a task to this phase</p></div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">✕</button>
+          <div>
+            <h2 id="task-form-title" className="text-base font-bold text-foreground">{task ? 'Edit Task' : 'New Task'}</h2>
+            <p className="text-xs text-muted-foreground">{task ? 'Update task details and attachments' : 'Add a task to this phase'}</p>
+          </div>
+          <button type="button" disabled={loading} aria-label="Close task form" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
@@ -98,14 +170,206 @@ function CreateTaskModal({ phaseId, onClose, onCreated }: CreateTaskModalProps) 
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-base" />
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">File Upload</label>
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary/50 hover:bg-muted/40">
+              <Upload size={15} />
+              Choose files (25 MB max each)
+              <input type="file" multiple accept={TASK_FILE_ACCEPT} className="hidden" onChange={handleFileSelection} />
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">Images, PDF, TXT, LOG, MP4, MOV, and ZIP files.</p>
+            {files.length > 0 && (
+              <ul className="mt-2 space-y-1.5">
+                {files.map((file, index) => (
+                  <li key={`${file.name}-${file.size}-${index}`} className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-2">
+                    <Paperclip size={13} className="shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-xs text-foreground">{file.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${file.name}`}
+                      onClick={() => setFiles(current => current.filter((_, fileIndex) => fileIndex !== index))}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
+                    >
+                      <X size={13} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="flex items-center gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-2.5 rounded-lg font-medium text-sm">Cancel</button>
+            <button type="button" disabled={loading} onClick={onClose} className="btn-secondary flex-1 py-2.5 rounded-lg font-medium text-sm disabled:opacity-50">Cancel</button>
             <button type="submit" disabled={loading || !title.trim()} className="btn-primary flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
-              {loading ? <><Loader2 size={14} className="animate-spin" /><span>Creating…</span></> : 'Create Task'}
+              {loading ? <><Loader2 size={14} className="animate-spin" /><span>Saving…</span></> : task ? 'Save Changes' : 'Create Task'}
             </button>
           </div>
         </form>
-      </div>
+      </section>
+    </div>
+  );
+}
+
+interface AssignTaskModalProps {
+  task: Task;
+  onClose: () => void;
+  onAssigned: (taskId: string, member: CompanyMember) => void;
+}
+
+function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalProps) {
+  const [members, setMembers] = useState<CompanyMember[]>([]);
+  const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      workApi.getTask(task.id),
+      organizationApi.listDepartmentMembers(task.departmentId),
+    ]).then(([taskResponse, membersResponse]) => {
+      if (cancelled) return;
+      setAssignees(taskResponse.data.assignees ?? []);
+      setMembers(membersResponse.data.filter(member => {
+        if (member.status?.toUpperCase() !== 'ACTIVE') return false;
+        const departmentRole = member.departmentMemberships
+          ?.find(assignment => assignment.departmentId === task.departmentId)?.role
+          ?? (member.departmentId === task.departmentId ? member.role : undefined);
+        return departmentRole === 'DEVELOPER' || departmentRole === 'TESTER';
+      }));
+    }).catch(err => {
+      if (!cancelled) {
+        setLoadError(true);
+        toast.error(err instanceof AxiosError
+          ? (err.response?.data?.message ?? 'Failed to load eligible task assignees')
+          : 'Failed to load eligible task assignees');
+      }
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [task.departmentId, task.id]);
+
+  const availableMembers = members.filter(member =>
+    member.userId !== task.createdBy
+      && !assignees.some(assignee => assignee.userId === member.userId)
+  );
+
+  const handleAssign = async () => {
+    const member = availableMembers.find(candidate => candidate.userId === selectedMemberId);
+    if (!member) {
+      if (selectedMemberId === task.createdBy) {
+        toast.error('You cannot assign a task you created to yourself. Please select another eligible member.');
+      }
+      return;
+    }
+    setAssigning(true);
+    try {
+      const response = await workApi.assignUser(task.id, { userId: member.userId });
+      setAssignees(current => [...current, response.data]);
+      setSelectedMemberId('');
+      onAssigned(task.id, member);
+      toast.success(`${member.firstName || member.email} assigned to task`);
+    } catch (err) {
+      toast.error(err instanceof AxiosError
+        ? (err.response?.data?.message ?? 'Failed to assign task')
+        : 'Failed to assign task');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close assignment dialog"
+        className="fixed inset-0 bg-black/40 fade-in"
+        onClick={onClose}
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="assign-task-title"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card shadow-modal fade-scale-in"
+      >
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 id="assign-task-title" className="text-base font-bold text-foreground">Assign Task</h2>
+            <p className="text-xs text-muted-foreground mt-1">{task.title}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close assignment dialog"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+          >
+            ×
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          {assignees.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Currently assigned</p>
+              <ul className="space-y-1 text-sm text-foreground">
+                {assignees.map(assignee => {
+                  const member = members.find(candidate => candidate.userId === assignee.userId);
+                  return <li key={assignee.id}>{member?.email ?? assignee.userId}</li>;
+                })}
+              </ul>
+            </div>
+          )}
+          <div>
+            <label htmlFor="task-assignee" className="block text-sm font-medium text-foreground mb-1.5">
+              Eligible department member
+            </label>
+            <select
+              id="task-assignee"
+              value={selectedMemberId}
+              onChange={event => setSelectedMemberId(event.target.value)}
+              disabled={loading || assigning || availableMembers.length === 0}
+              className="input-base"
+            >
+              <option value="">
+                {loading ? 'Loading eligible members…' : 'Select a Developer or Tester'}
+              </option>
+              {availableMembers.map(member => (
+                <option key={member.userId} value={member.userId}>
+                  {member.firstName || member.lastName
+                    ? `${member.firstName} ${member.lastName}`.trim()
+                    : member.email} ({member.email})
+                </option>
+              ))}
+            </select>
+            {!loading && loadError && (
+              <p className="mt-2 text-xs text-red-600">
+                Eligible members could not be loaded. Close this dialog and try again.
+              </p>
+            )}
+            {!loading && !loadError && availableMembers.length === 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                There are no unassigned active Developers or Testers in this task&apos;s department.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-2.5 rounded-lg font-medium text-sm">
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleAssign}
+              disabled={!selectedMemberId || loading || assigning}
+              className="btn-primary flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {assigning ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+              Assign Task
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -128,6 +392,10 @@ export default function TasksContent({ initialPhaseId }: Props) {
   const [phases, setPhases] = useState<Phase[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+  const [projectsById, setProjectsById] = useState<Record<string, Project>>({});
+  const [companyMemberships, setCompanyMemberships] = useState<Record<string, CompanyMember>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [assignedMemberEmails, setAssignedMemberEmails] = useState<Record<string, string[]>>({});
   const [companyFilter, setCompanyFilter] = useState('ALL');
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>(initialPhaseId ?? '');
   const [loading, setLoading] = useState(false);
@@ -135,6 +403,8 @@ export default function TasksContent({ initialPhaseId }: Props) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [assignTask, setAssignTask] = useState<Task | null>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   // Load company, project, and phase context so the task view covers every active membership.
@@ -160,6 +430,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
         });
         const allProjects = projectPages.flat();
         setProjectNames(Object.fromEntries(allProjects.map(project => [project.id, project.name])));
+        setProjectsById(Object.fromEntries(allProjects.map(project => [project.id, project])));
         const phasePages = await mapInBatches(allProjects, 10, async project => {
           const response = await projectsApi.listPhases(project.id);
           return Array.isArray(response.data) ? response.data : [];
@@ -195,6 +466,73 @@ export default function TasksContent({ initialPhaseId }: Props) {
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
 
+  useEffect(() => {
+    if (companies.length === 0) return;
+    const userId = getStoredUser()?.id;
+    if (!userId) {
+      toast.error('Unable to determine the current account for task permissions');
+      return;
+    }
+    setCurrentUserId(userId);
+    let cancelled = false;
+    mapInBatches(companies, 10, company => organizationApi.getMyMembership(company.id))
+      .then(responses => {
+        if (!cancelled) {
+          setCompanyMemberships(Object.fromEntries(
+            companies.map((company, index) => [company.id, responses[index].data])
+          ));
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          toast.error(err instanceof AxiosError
+            ? (err.response?.data?.message ?? 'Failed to load task management permissions')
+            : 'Failed to load task management permissions');
+        }
+      });
+    return () => { cancelled = true; };
+  }, [companies]);
+
+  const canManageTask = (task: Task) => {
+    const membership = companyMemberships[task.companyId];
+    if (membership?.role === 'OWNER' || membership?.role === 'ADMIN') return true;
+    if (!membership || !currentUserId) return false;
+    const departmentRole = membership.departmentMemberships
+      ?.find(assignment => assignment.departmentId === task.departmentId)?.role
+      ?? (membership.departmentId === task.departmentId ? membership.role : undefined);
+    return departmentRole === 'PROJECT_MANAGER'
+      && projectsById[task.projectId]?.projectManagerId === currentUserId;
+  };
+
+  const canDeleteTask = (task: Task) => {
+    const role = companyMemberships[task.companyId]?.role;
+    return role === 'OWNER' || role === 'ADMIN';
+  };
+
+  const canCreateTaskInSelectedPhase = () => {
+    const phase = phases.find(candidate => candidate.id === selectedPhaseId);
+    const project = phase ? projectsById[phase.projectId] : undefined;
+    if (!project) return false;
+    if (companyMemberships[project.companyId]?.role === 'OWNER'
+      || companyMemberships[project.companyId]?.role === 'ADMIN') return true;
+    const membership = companyMemberships[project.companyId];
+    if (!membership || !currentUserId) return false;
+    const departmentRole = membership.departmentMemberships
+      ?.find(assignment => assignment.departmentId === project.departmentId)?.role
+      ?? (membership.departmentId === project.departmentId ? membership.role : undefined);
+    return departmentRole === 'PROJECT_MANAGER' && project.projectManagerId === currentUserId;
+  };
+
+  const handleTaskAssigned = (taskId: string, member: CompanyMember) => {
+    setTasks(current => current.map(task => task.id === taskId && task.status === 'DRAFT'
+      ? { ...task, status: 'ASSIGNED' }
+      : task));
+    setAssignedMemberEmails(current => ({
+      ...current,
+      [taskId]: [...(current[taskId] ?? []), member.email],
+    }));
+  };
+
   const handleStatusChange = async (taskId: string, status: Task['status']) => {
     let reason: string | undefined;
     if (status === 'CHANGES_REQUESTED') {
@@ -214,13 +552,14 @@ export default function TasksContent({ initialPhaseId }: Props) {
     setActiveMenu(null);
   };
 
-  const handleDelete = async (taskId: string, title: string) => {
+  const handleArchive = async (taskId: string, title: string) => {
+    if (!window.confirm(`Archive "${title}"? It will be hidden from active task lists while its history and files are preserved.`)) return;
     try {
-      await workApi.deleteTask(taskId);
+      await workApi.archiveTask(taskId);
       setTasks(prev => prev.filter(t => t.id !== taskId));
-      toast.success(`"${title}" deleted`);
+      toast.success(`"${title}" archived`);
     } catch (err) {
-      toast.error(err instanceof AxiosError ? (err.response?.data?.message ?? 'Failed to delete task') : 'Failed to delete task');
+      toast.error(err instanceof AxiosError ? (err.response?.data?.message ?? 'Failed to archive task') : 'Failed to archive task');
     }
     setActiveMenu(null);
   };
@@ -245,7 +584,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
           <h1 className="text-2xl font-bold text-foreground">Tasks</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Manage and track work across project phases</p>
         </div>
-        {selectedPhaseId && (
+        {selectedPhaseId && canCreateTaskInSelectedPhase() && (
           <button onClick={() => setCreateOpen(true)} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold">
             <Plus size={15} />New Task
           </button>
@@ -301,7 +640,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)} className="input-base pl-8 text-sm" />
+          <input type="text" placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)} className="input-base input-search text-sm" />
         </div>
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           {['ALL', 'DRAFT', 'ASSIGNED', 'NOT_YET', 'IN_PROGRESS', 'SUBMITTED', 'ACCEPTED', 'CHANGES_REQUESTED', 'COMPLETED', 'CANCELLED'].map(s => (
@@ -319,7 +658,7 @@ export default function TasksContent({ initialPhaseId }: Props) {
         <div className="card-elevated p-12 text-center">
           <CheckSquare size={36} className="text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">{search || statusFilter !== 'ALL' || companyFilter !== 'ALL' ? 'No tasks match your filters' : selectedPhaseId ? 'No tasks yet in this phase' : 'No tasks in the selected companies'}</p>
-          {!search && statusFilter === 'ALL' && selectedPhaseId && (
+          {!search && statusFilter === 'ALL' && selectedPhaseId && canCreateTaskInSelectedPhase() && (
             <button onClick={() => setCreateOpen(true)} className="btn-primary mt-4 px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2">
               <Plus size={14} />Create First Task
             </button>
@@ -351,6 +690,11 @@ export default function TasksContent({ initialPhaseId }: Props) {
                               .filter(Boolean)
                               .join(' · ')}
                           </p>
+                            {assignedMemberEmails[task.id]?.length ? (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Assigned: {assignedMemberEmails[task.id].join(', ')}
+                              </p>
+                            ) : null}
                         </div>
                       </div>
                     </td>
@@ -372,26 +716,55 @@ export default function TasksContent({ initialPhaseId }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="relative">
-                        <button onClick={() => setActiveMenu(activeMenu === task.id ? null : task.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all">
-                          <MoreHorizontal size={15} />
-                        </button>
-                        {activeMenu === task.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
-                            <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 fade-scale-in">
-                              <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Change Status</p>
-                              {getAllowedTaskTransitions(task.status).map(s => (
-                                <button key={s} onClick={() => handleStatusChange(task.id, s)} className={`flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors ${task.status === s ? 'text-primary font-medium' : 'text-foreground'}`}>
-                                  {s.replace(/_/g, ' ')}
-                                </button>
-                              ))}
-                              <div className="border-t border-border my-1" />
-                              <button onClick={() => handleDelete(task.id, task.title)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
-                                <Trash2 size={12} />Delete
+                        <FloatingMenu
+                          open={activeMenu === task.id}
+                          onOpenChange={(open) => setActiveMenu(open ? task.id : null)}
+                          widthClassName="w-44"
+                          trigger={(triggerProps) => (
+                            <button
+                              {...triggerProps}
+                              type="button"
+                              aria-label={`Actions for ${task.title}`}
+                              className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all"
+                            >
+                              <MoreVertical size={15} />
+                            </button>
+                          )}
+                        >
+                          {canManageTask(task) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setEditingTask(task)}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                              >
+                                <Pencil size={12} className="text-muted-foreground" />
+                                Edit Task
                               </button>
-                            </div>
-                          </>
-                        )}
+                              <button
+                                type="button"
+                                onClick={() => setAssignTask(task)}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                              >
+                                <UserPlus size={12} className="text-muted-foreground" />
+                                Assign Task
+                              </button>
+                              <div className="border-t border-border my-1" />
+                            </>
+                          )}
+                          <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Change Status</p>
+                          {getAllowedTaskTransitions(task.status).map(s => (
+                            <button key={s} onClick={() => handleStatusChange(task.id, s)} className={`flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted transition-colors ${task.status === s ? 'text-primary font-medium' : 'text-foreground'}`}>
+                              {s.replace(/_/g, ' ')}
+                            </button>
+                          ))}
+                          <div className="border-t border-border my-1" />
+                          {canDeleteTask(task) && (
+                            <button onClick={() => handleArchive(task.id, task.title)} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                              <Archive size={12} />Archive
+                            </button>
+                          )}
+                        </FloatingMenu>
                       </div>
                     </td>
                   </tr>
@@ -403,10 +776,32 @@ export default function TasksContent({ initialPhaseId }: Props) {
       )}
 
       {createOpen && selectedPhaseId && (
-        <CreateTaskModal
+        <TaskFormModal
           phaseId={selectedPhaseId}
           onClose={() => setCreateOpen(false)}
-          onCreated={(t) => { setTasks(prev => [t, ...prev]); setCreateOpen(false); }}
+          onSaved={savedTask => {
+            setTasks(current => current.some(item => item.id === savedTask.id)
+              ? current.map(item => item.id === savedTask.id ? savedTask : item)
+              : [savedTask, ...current]);
+          }}
+        />
+      )}
+      {editingTask && (
+        <TaskFormModal
+          phaseId={editingTask.phaseId}
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSaved={savedTask => {
+            setTasks(current => current.map(item => item.id === savedTask.id ? savedTask : item));
+            setEditingTask(savedTask);
+          }}
+        />
+      )}
+      {assignTask && (
+        <AssignTaskModal
+          task={assignTask}
+          onClose={() => setAssignTask(null)}
+          onAssigned={handleTaskAssigned}
         />
       )}
     </div>
