@@ -53,8 +53,8 @@ if [ "$#" -eq 3 ] && [ "$1" = "--confirm-dev" ] && [ "$2" = "--set-account-role"
   docker compose --project-name "$COMPOSE_PROJECT" \
     -f "$COMPOSE_FILE" --project-directory "$ROOT" \
     exec -T -e "DEV_SEED_IDENTITY_USER_ID=$DEV_SEED_IDENTITY_USER_ID" \
-    -e "DEV_SEED_ACCOUNT_ROLE=$account_role" identity-db sh -c \
-    'exec psql --set ON_ERROR_STOP=1 --set="identity_user_id=$DEV_SEED_IDENTITY_USER_ID" --set="account_role=$DEV_SEED_ACCOUNT_ROLE" --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"' \
+    -e "DEV_SEED_ACCOUNT_ROLE=$account_role" postgres sh -c \
+    'exec psql --set ON_ERROR_STOP=1 --set="identity_user_id=$DEV_SEED_IDENTITY_USER_ID" --set="account_role=$DEV_SEED_ACCOUNT_ROLE" --username "$POSTGRES_USER" --dbname identity_db' \
     < "$sql_file"
   exit 0
 fi
@@ -87,16 +87,26 @@ fi
 
 seed_one() {
   service=$1
+  case "$service" in
+    identity) database=identity_db ;;
+    organization) database=organization_db ;;
+    project) database=project_db ;;
+    work) database=task_db ;;
+    bug) database=bug_db ;;
+    recruitment) database=recruitment_db ;;
+    notification) database=notification_db ;;
+    payment) database=payment_db ;;
+  esac
   sql_file="$SEED_DIR/$service.sql"
   if [ ! -f "$sql_file" ]; then
     printf 'Missing seed SQL file: %s\n' "$sql_file" >&2
     return 1
   fi
-  printf 'Applying synthetic %s fixtures to local Compose service %s...\n' "$service" "$service-db"
+  printf 'Applying synthetic %s fixtures to local Compose database %s...\n' "$service" "$database"
   docker compose --project-name "$COMPOSE_PROJECT" \
     -f "$COMPOSE_FILE" --project-directory "$ROOT" \
-    exec -T -e "DEV_SEED_USER_ID=$DEV_SEED_USER_ID" "$service-db" sh -c \
-    'exec psql --set ON_ERROR_STOP=1 --set="dev_user_id=$DEV_SEED_USER_ID" --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"' \
+    exec -T -e "DEV_SEED_USER_ID=$DEV_SEED_USER_ID" postgres sh -c \
+    'exec psql --set ON_ERROR_STOP=1 --set="dev_user_id=$DEV_SEED_USER_ID" --username "$POSTGRES_USER" --dbname "$1"' sh "$database" \
     < "$sql_file"
 }
 

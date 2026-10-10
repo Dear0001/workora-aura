@@ -37,20 +37,21 @@ DEV_SEED_IDENTITY_USER_ID=your-workora-profile-uuid \
   sh tools/dev/seed-dev.sh --confirm-dev --set-account-role ADMIN
 ```
 
-This command only updates exactly one existing row in the local `identity-db`;
-it fails if the profile ID does not match exactly one row. It does not alter
-the Keycloak realm role, and it does not change organization membership roles.
+This command only updates exactly one existing row in the `identity_db`
+database on the local shared `postgres` container; it fails if the profile ID
+does not match exactly one row. It does not alter the Keycloak realm role, and
+it does not change organization membership roles.
 For admin dashboard access, also assign the `ADMIN` realm role to that account
 in the Keycloak Admin Console (Users → account → Role mapping → Assign role →
 Realm roles), then sign out and back in so the access token contains the
 updated role. Never run this against a production database or use it to grant
 production access.
 
-The confirmation flag is required. The runner targets only the PostgreSQL
-services in the repository's `docker-compose.yml` and passes SQL on standard
-input. The databases must already be running. Each SQL file is transactional
-and uses stable IDs so re-running it updates/reuses the same fixture rows.
-No database is modified by listing the available targets.
+The confirmation flag is required. The runner targets only the service-owned
+databases in the repository's `docker-compose.yml` and passes SQL on standard
+input. The shared PostgreSQL container must already be running. Each SQL file
+is transactional and uses stable IDs so re-running it updates/reuses the same
+fixture rows. No database is modified by listing the available targets.
 
 The runner uses the same Compose project name as `start-all-db.sh`
 (`workora-microservices-2` by default). If `COMPOSE_PROJECT_NAME` is set when

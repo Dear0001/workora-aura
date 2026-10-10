@@ -353,3 +353,22 @@ The importable Postman Collection remains at `postman/Workora.postman_collection
 - [x] Restrict task archival to Owner/Admin and hide archived tasks without deleting dependent data.
 - [x] Focused Java 17 tests passed: Organization 23, Project 13, and Work 21 tests (57 total).
 - [ ] Services were not rebuilt or deployed; perform deployment/rebuild separately when requested.
+
+## Render dashboard-service Docker build (2026-10-10)
+
+- User approved making the shared Dockerfile default to `dashboard-service` for the failing Render deployment.
+- The Docker build successfully packages all Maven modules, but Render's Docker build receives an empty `SERVICE` argument and fails when copying the service jar.
+- Preserve the existing uncommitted Dockerfile fail-fast check and set `ARG SERVICE=dashboard-service`; other Render services must continue to provide their own `SERVICE` value.
+- `git diff --check` passed. A local image build was not run because the backend build context contains `.env` and `.dockerignore` does not exclude it; avoid copying that file into a build context. No Render deployment is available from this workspace.
+
+## Consolidating local PostgreSQL containers (2026-10-10)
+
+- User approved changing local Docker Compose only: one PostgreSQL container/instance, retaining a separate database for each microservice. Render is out of scope.
+- User approved documenting a manual data-preserving migration. Do not execute it, stop services, or remove existing containers/volumes as part of this change.
+- User additionally approved distinct least-privilege PostgreSQL login roles and credentials per service; the shared PostgreSQL administrator credentials must not be passed to application containers.
+- [x] Update Compose initialization and credentials, all local JDBC defaults and Compose connection URLs, dashboard-only dependencies, database startup/rebuild and seed scripts, smoke checks, and database documentation.
+- [x] Preserve all eight database names and service ownership boundaries; create a least-privilege role per database, revoke public database connections, and keep existing volumes untouched.
+- [x] Document the per-service credential template and manual export/restore steps from the current database containers into the new shared PostgreSQL instance.
+- [x] Preserve old volumes in the rebuild script and add the new shared container to cleanup tooling without executing either script.
+- [x] Validate both Compose files (including the dashboard override), assert all eight service-specific URLs/dependencies target the shared instance, check shell syntax, run the seed target listing, and pass `git diff --check`.
+- No services were started and no local data was migrated. The Compose validation used an empty env file so `.env` was not read; warnings only reported the intentionally absent environment values.

@@ -83,138 +83,36 @@ services:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
       - ./keycloak/themes/workora:/opt/keycloak/themes/workora:ro
 
-  identity-db:
+  postgres:
     image: postgres:16-alpine
-    container_name: workora-identity-db
+    container_name: workora-postgres
     environment:
       POSTGRES_DB: identity_db
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      DB_IDENTITY_USERNAME: ${DB_IDENTITY_USERNAME:?Set DB_IDENTITY_USERNAME in .env}
+      DB_IDENTITY_PASSWORD: ${DB_IDENTITY_PASSWORD:?Set DB_IDENTITY_PASSWORD in .env}
+      DB_ORGANIZATION_USERNAME: ${DB_ORGANIZATION_USERNAME:?Set DB_ORGANIZATION_USERNAME in .env}
+      DB_ORGANIZATION_PASSWORD: ${DB_ORGANIZATION_PASSWORD:?Set DB_ORGANIZATION_PASSWORD in .env}
+      DB_PROJECT_USERNAME: ${DB_PROJECT_USERNAME:?Set DB_PROJECT_USERNAME in .env}
+      DB_PROJECT_PASSWORD: ${DB_PROJECT_PASSWORD:?Set DB_PROJECT_PASSWORD in .env}
+      DB_WORK_USERNAME: ${DB_WORK_USERNAME:?Set DB_WORK_USERNAME in .env}
+      DB_WORK_PASSWORD: ${DB_WORK_PASSWORD:?Set DB_WORK_PASSWORD in .env}
+      DB_BUG_USERNAME: ${DB_BUG_USERNAME:?Set DB_BUG_USERNAME in .env}
+      DB_BUG_PASSWORD: ${DB_BUG_PASSWORD:?Set DB_BUG_PASSWORD in .env}
+      DB_RECRUITMENT_USERNAME: ${DB_RECRUITMENT_USERNAME:?Set DB_RECRUITMENT_USERNAME in .env}
+      DB_RECRUITMENT_PASSWORD: ${DB_RECRUITMENT_PASSWORD:?Set DB_RECRUITMENT_PASSWORD in .env}
+      DB_NOTIFICATION_USERNAME: ${DB_NOTIFICATION_USERNAME:?Set DB_NOTIFICATION_USERNAME in .env}
+      DB_NOTIFICATION_PASSWORD: ${DB_NOTIFICATION_PASSWORD:?Set DB_NOTIFICATION_PASSWORD in .env}
+      DB_PAYMENT_USERNAME: ${DB_PAYMENT_USERNAME:?Set DB_PAYMENT_USERNAME in .env}
+      DB_PAYMENT_PASSWORD: ${DB_PAYMENT_PASSWORD:?Set DB_PAYMENT_PASSWORD in .env}
     ports:
       - "5433:5432"
     volumes:
-      - identity-db-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+      - ./tools/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d identity_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  organization-db:
-    image: postgres:16-alpine
-    container_name: workora-organization-db
-    environment:
-      POSTGRES_DB: organization_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5434:5432"
-    volumes:
-      - organization-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d organization_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  project-db:
-    image: postgres:16-alpine
-    container_name: workora-project-db
-    environment:
-      POSTGRES_DB: project_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5435:5432"
-    volumes:
-      - project-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d project_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  work-db:
-    image: postgres:16-alpine
-    container_name: workora-work-db
-    environment:
-      POSTGRES_DB: task_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5436:5432"
-    volumes:
-      - work-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d task_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  bug-db:
-    image: postgres:16-alpine
-    container_name: workora-bug-db
-    environment:
-      POSTGRES_DB: bug_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5437:5432"
-    volumes:
-      - bug-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d bug_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  recruitment-db:
-    image: postgres:16-alpine
-    container_name: workora-recruitment-db
-    environment:
-      POSTGRES_DB: recruitment_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5438:5432"
-    volumes:
-      - recruitment-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d recruitment_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  notification-db:
-    image: postgres:16-alpine
-    container_name: workora-notification-db
-    environment:
-      POSTGRES_DB: notification_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5439:5432"
-    volumes:
-      - notification-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d notification_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  payment-db:
-    image: postgres:16-alpine
-    container_name: workora-payment-db
-    environment:
-      POSTGRES_DB: payment_db
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5440:5432"
-    volumes:
-      - payment-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workora -d payment_db"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d identity_db"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -228,9 +126,9 @@ services:
     restart: unless-stopped
     environment:
       IDENTITY_SERVICE_PORT: ${IDENTITY_SERVICE_PORT:-8101}
-      DB_URL: jdbc:postgresql://identity-db:5432/identity_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/identity_db
+      DB_USERNAME: ${DB_IDENTITY_USERNAME:?Set DB_IDENTITY_USERNAME in .env}
+      DB_PASSWORD: ${DB_IDENTITY_PASSWORD:?Set DB_IDENTITY_PASSWORD in .env}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8180/realms/workora}
       KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://keycloak:8080}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-workora}
@@ -249,7 +147,7 @@ services:
     ports:
       - "${IDENTITY_SERVICE_PORT:-8101}:${IDENTITY_SERVICE_PORT:-8101}"
     depends_on:
-      identity-db:
+      postgres:
         condition: service_healthy
       keycloak:
         condition: service_started
@@ -265,9 +163,9 @@ services:
     restart: unless-stopped
     environment:
       ORGANIZATION_SERVICE_PORT: ${ORGANIZATION_SERVICE_PORT:-8102}
-      DB_URL: jdbc:postgresql://organization-db:5432/organization_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/organization_db
+      DB_USERNAME: ${DB_ORGANIZATION_USERNAME:?Set DB_ORGANIZATION_USERNAME in .env}
+      DB_PASSWORD: ${DB_ORGANIZATION_PASSWORD:?Set DB_ORGANIZATION_PASSWORD in .env}
       STORAGE_MINIO_ENDPOINT: http://minio:9000
       STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
       STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -283,7 +181,7 @@ services:
       retries: 12
       start_period: 20s
     depends_on:
-      organization-db:
+      postgres:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
@@ -297,9 +195,9 @@ services:
     restart: unless-stopped
     environment:
       PROJECT_SERVICE_PORT: ${PROJECT_SERVICE_PORT:-8103}
-      DB_URL: jdbc:postgresql://project-db:5432/project_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/project_db
+      DB_USERNAME: ${DB_PROJECT_USERNAME:?Set DB_PROJECT_USERNAME in .env}
+      DB_PASSWORD: ${DB_PROJECT_PASSWORD:?Set DB_PROJECT_PASSWORD in .env}
       STORAGE_MINIO_ENDPOINT: http://minio:9000
       STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
       STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -308,7 +206,7 @@ services:
     ports:
       - "${PROJECT_SERVICE_PORT:-8103}:${PROJECT_SERVICE_PORT:-8103}"
     depends_on:
-      project-db:
+      postgres:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
@@ -322,9 +220,9 @@ services:
     restart: unless-stopped
     environment:
       WORK_SERVICE_PORT: ${WORK_SERVICE_PORT:-8104}
-      DB_URL: jdbc:postgresql://work-db:5432/task_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/task_db
+      DB_USERNAME: ${DB_WORK_USERNAME:?Set DB_WORK_USERNAME in .env}
+      DB_PASSWORD: ${DB_WORK_PASSWORD:?Set DB_WORK_PASSWORD in .env}
       STORAGE_MINIO_ENDPOINT: http://minio:9000
       STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
       STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -333,7 +231,7 @@ services:
     ports:
       - "${WORK_SERVICE_PORT:-8104}:${WORK_SERVICE_PORT:-8104}"
     depends_on:
-      work-db:
+      postgres:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
@@ -347,9 +245,9 @@ services:
     restart: unless-stopped
     environment:
       BUG_SERVICE_PORT: ${BUG_SERVICE_PORT:-8105}
-      DB_URL: jdbc:postgresql://bug-db:5432/bug_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/bug_db
+      DB_USERNAME: ${DB_BUG_USERNAME:?Set DB_BUG_USERNAME in .env}
+      DB_PASSWORD: ${DB_BUG_PASSWORD:?Set DB_BUG_PASSWORD in .env}
       STORAGE_MINIO_ENDPOINT: http://minio:9000
       STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
       STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -358,7 +256,7 @@ services:
     ports:
       - "${BUG_SERVICE_PORT:-8105}:${BUG_SERVICE_PORT:-8105}"
     depends_on:
-      bug-db:
+      postgres:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
@@ -372,9 +270,9 @@ services:
     restart: unless-stopped
     environment:
       RECRUITMENT_SERVICE_PORT: ${RECRUITMENT_SERVICE_PORT:-8106}
-      DB_URL: jdbc:postgresql://recruitment-db:5432/recruitment_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/recruitment_db
+      DB_USERNAME: ${DB_RECRUITMENT_USERNAME:?Set DB_RECRUITMENT_USERNAME in .env}
+      DB_PASSWORD: ${DB_RECRUITMENT_PASSWORD:?Set DB_RECRUITMENT_PASSWORD in .env}
       STORAGE_MINIO_ENDPOINT: http://minio:9000
       STORAGE_MINIO_PRESIGN_ENDPOINT: ${STORAGE_MINIO_PRESIGN_ENDPOINT:-http://localhost:9000}
       STORAGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -383,7 +281,7 @@ services:
     ports:
       - "${RECRUITMENT_SERVICE_PORT:-8106}:${RECRUITMENT_SERVICE_PORT:-8106}"
     depends_on:
-      recruitment-db:
+      postgres:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
@@ -397,9 +295,9 @@ services:
     restart: unless-stopped
     environment:
       NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT:-8107}
-      DB_URL: jdbc:postgresql://notification-db:5432/notification_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/notification_db
+      DB_USERNAME: ${DB_NOTIFICATION_USERNAME:?Set DB_NOTIFICATION_USERNAME in .env}
+      DB_PASSWORD: ${DB_NOTIFICATION_PASSWORD:?Set DB_NOTIFICATION_PASSWORD in .env}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -414,7 +312,7 @@ services:
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-8107}:${NOTIFICATION_SERVICE_PORT:-8107}"
     depends_on:
-      notification-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -428,9 +326,9 @@ services:
     restart: unless-stopped
     environment:
       PAYMENT_SERVICE_PORT: ${PAYMENT_SERVICE_PORT:-8108}
-      DB_URL: jdbc:postgresql://payment-db:5432/payment_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/payment_db
+      DB_USERNAME: ${DB_PAYMENT_USERNAME:?Set DB_PAYMENT_USERNAME in .env}
+      DB_PASSWORD: ${DB_PAYMENT_PASSWORD:?Set DB_PAYMENT_PASSWORD in .env}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -447,7 +345,7 @@ services:
     ports:
       - "${PAYMENT_SERVICE_PORT:-8108}:${PAYMENT_SERVICE_PORT:-8108}"
     depends_on:
-      payment-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -550,11 +448,4 @@ networks:
 volumes:
   minio-data:
   keycloak-data:
-  identity-db-data:
-  organization-db-data:
-  project-db-data:
-  work-db-data:
-  bug-db-data:
-  recruitment-db-data:
-  notification-db-data:
-  payment-db-data:
+  postgres-data:

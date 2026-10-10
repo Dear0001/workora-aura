@@ -7,14 +7,7 @@ COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-workora-microservices-2}"
 NETWORK_NAME="workora-microservices_default"
 
 DATABASE_SERVICES=(
-  identity-db
-  organization-db
-  project-db
-  work-db
-  bug-db
-  recruitment-db
-  notification-db
-  payment-db
+  postgres
 )
 
 cd "$PROJECT_ROOT"
@@ -24,10 +17,10 @@ if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
   docker network create "$NETWORK_NAME" >/dev/null
 fi
 
-echo "Starting PostgreSQL containers..."
+echo "Starting the shared PostgreSQL container..."
 docker compose --project-name "$COMPOSE_PROJECT" up -d "${DATABASE_SERVICES[@]}"
 
-echo "Waiting for PostgreSQL containers to become healthy..."
+echo "Waiting for the PostgreSQL container to become healthy..."
 for service in "${DATABASE_SERVICES[@]}"; do
   container="$(
     docker compose --project-name "$COMPOSE_PROJECT" ps -q "$service"
@@ -47,4 +40,4 @@ for service in "${DATABASE_SERVICES[@]}"; do
   done
 done
 
-echo "All database containers are healthy."
+echo "The shared PostgreSQL container is healthy."

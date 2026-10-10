@@ -48,8 +48,8 @@ wait_http minio http://localhost:9000/minio/health/live
 wait_exec rabbitmq 'rabbitmq-diagnostics -q ping'
 wait_exec redis 'redis-cli ping'
 
-for database in identity-db organization-db project-db work-db bug-db recruitment-db notification-db payment-db; do
-  wait_exec "$database" 'pg_isready -U workora'
+for database in identity_db organization_db project_db task_db bug_db recruitment_db notification_db payment_db; do
+  wait_exec postgres "pg_isready -U workora -d $database"
 done
 
 wait_http api-gateway http://localhost:8080/actuator/health

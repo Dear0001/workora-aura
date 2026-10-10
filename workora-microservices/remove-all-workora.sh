@@ -14,6 +14,7 @@ WORKORA_CONTAINERS=(
   workora-minio
   workora-minio-init
   workora-keycloak
+  workora-postgres
   workora-identity-db
   workora-organization-db
   workora-project-db

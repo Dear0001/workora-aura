@@ -56,7 +56,7 @@ publishing remain planned features. The target contracts are documented in
 Start Keycloak and the identity database from the repository root:
 
 ```bash
-docker compose up -d keycloak identity-db
+docker compose up -d keycloak postgres
 ```
 
 Keycloak is available at `http://localhost:8180`, using realm `workora` and
@@ -69,9 +69,10 @@ Start the service with Java 17:
 mvn spring-boot:run -pl identity-service
 ```
 
-The datasource defaults to database `identity_db` on `localhost:5433` with
-username `workora` and password `workora123`. Override it with `DB_URL`,
-`DB_USERNAME`, and `DB_PASSWORD`.
+The datasource defaults to database `identity_db` on `localhost:5433`. Set
+`DB_USERNAME` and `DB_PASSWORD` to the Identity-specific credentials from the
+backend root's `tools/postgres/roles.env.example`; do not use the PostgreSQL
+administrator credentials for the service.
 
 Configure Keycloak SMTP in the realm for verification and password-reset
 emails. Keycloak is the single source of truth for both flows: do not add a

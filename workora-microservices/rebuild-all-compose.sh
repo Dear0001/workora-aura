@@ -15,14 +15,7 @@ CORE_INFRA_SERVICES=(
 )
 
 DATABASE_SERVICES=(
-  identity-db
-  organization-db
-  project-db
-  work-db
-  bug-db
-  recruitment-db
-  notification-db
-  payment-db
+  postgres
 )
 
 KEYCLOAK_SERVICE=(keycloak)
@@ -34,6 +27,7 @@ WORKORA_CONTAINERS=(
   workora-minio
   workora-minio-init
   workora-keycloak
+  workora-postgres
   workora-identity-db
   workora-organization-db
   workora-project-db
@@ -163,13 +157,13 @@ check_docker() {
 
 check_docker
 
-log "Stopping all containers and removing their volumes..."
-docker compose --project-name "$COMPOSE_PROJECT_NAME" down -v --remove-orphans || true
+log "Stopping all containers while preserving database and infrastructure volumes..."
+docker compose --project-name "$COMPOSE_PROJECT_NAME" down --remove-orphans || true
 
 log "Removing fixed-name Workora containers left by previous Compose runs..."
 for container in "${WORKORA_CONTAINERS[@]}"; do
   if docker container inspect "$container" >/dev/null 2>&1; then
-    docker container rm --force --volumes "$container" >/dev/null
+    docker container rm --force "$container" >/dev/null
     log "Removed container $container."
   fi
 done
@@ -179,9 +173,6 @@ docker image prune -f
 
 log "Removing all unused Docker images..."
 docker image prune -a -f
-
-log "Removing unused Docker volumes..."
-docker volume prune -f
 
 log "Removing unused Docker networks..."
 docker network prune -f
@@ -209,10 +200,10 @@ log "Starting Keycloak once..."
 docker compose --project-name "$COMPOSE_PROJECT_NAME" up -d "${KEYCLOAK_SERVICE[@]}"
 wait_for_service keycloak
 
-log "Starting PostgreSQL databases..."
+log "Starting the shared PostgreSQL instance..."
 docker compose --project-name "$COMPOSE_PROJECT_NAME" up -d "${DATABASE_SERVICES[@]}"
 
-log "Waiting for PostgreSQL databases..."
+log "Waiting for the shared PostgreSQL instance..."
 for service in "${DATABASE_SERVICES[@]}"; do
   wait_for_service "$service"
 done

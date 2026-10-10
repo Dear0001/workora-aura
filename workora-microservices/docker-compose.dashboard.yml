@@ -1,32 +1,32 @@
 services:
   identity-service:
     depends_on: !override
-      identity-db:
+      postgres:
         condition: service_healthy
       keycloak:
         condition: service_started
 
   organization-service:
     depends_on: !override
-      organization-db:
+      postgres:
         condition: service_healthy
 
   project-service:
     depends_on: !override
-      project-db:
+      postgres:
         condition: service_healthy
 
   work-service:
     depends_on: !override
-      work-db:
+      postgres:
         condition: service_healthy
 
   bug-service:
     depends_on: !override
-      bug-db:
+      postgres:
         condition: service_healthy
 
   recruitment-service:
     depends_on: !override
-      recruitment-db:
+      postgres:
         condition: service_healthy

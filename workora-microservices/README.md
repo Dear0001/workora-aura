@@ -26,10 +26,11 @@ The repository currently contains:
   The default provider is a local simulator; set `PAYMENT_PROVIDER=bakong` to
   use the configurable Bakong authentication, QR/deep-link, status-polling,
   and callback adapter.
-- Docker Compose PostgreSQL containers for each data-owning service and a
-  Keycloak realm import for local development. RabbitMQ is included for
-  domain events. MinIO provides the local S3-compatible object store for
-  project assets, task submissions, bug evidence, and recruitment files.
+- One local Docker Compose PostgreSQL container hosting a separate database
+  for each data-owning service, plus a Keycloak realm import. RabbitMQ is
+  included for domain events. MinIO provides the local S3-compatible object
+  store for project assets, task submissions, bug evidence, and recruitment
+  files.
 
 The feature inventory and endpoint sections below describe the target platform;
 they are not claims that those APIs already exist. See each service README for
@@ -130,7 +131,7 @@ chmod +x start-all-db.sh start-keycloak.sh start-all-service.sh remove-all-servi
 ```
 
 The scripts can be run again safely. `start-all-db.sh` starts the PostgreSQL
-containers, `start-keycloak.sh` starts Keycloak, and `start-all-service.sh`
+container, `start-keycloak.sh` starts Keycloak, and `start-all-service.sh`
 checks the application containers and source fingerprint before starting.
 It rebuilds the application images only when a tracked source or build file
 has changed, or when the saved state is missing.
@@ -182,8 +183,9 @@ Compose project name before the next startup. This prevents stale RabbitMQ
 ## Start infrastructure with Docker
 
 The [docker-compose.yml](./docker-compose.yml) file defines Keycloak, one
-PostgreSQL container per database-owning service, and all Spring Boot
-application containers. The startup scripts above start these groups separately.
+PostgreSQL container with a separate database for each owning service, and all
+Spring Boot application containers. The startup scripts above start these
+groups separately.
 
 The startup scripts use the Compose project name
 `workora-microservices-2` and the shared Docker network
@@ -239,7 +241,7 @@ presigned storage upload URL.
 Alternatively, to start the same groups directly with Compose, use:
 
 ```bash
-docker compose --project-name workora-microservices-2 up -d identity-db organization-db project-db work-db bug-db recruitment-db notification-db payment-db
+docker compose --project-name workora-microservices-2 up -d postgres
 docker compose --project-name workora-microservices-2 up -d keycloak
 docker compose --project-name workora-microservices-2 build
 docker compose --project-name workora-microservices-2 up -d
@@ -258,29 +260,107 @@ docker compose ps
 
 ### Local PostgreSQL credentials
 
-Each PostgreSQL container uses these development-only defaults:
+The shared local PostgreSQL container uses these development-only defaults:
 
 | Setting | Value |
 | --- | --- |
 | Username | `workora` |
 | Password | `workora123` |
-| Host ports | `5433` through `5440` |
+| Host port | `5433` |
 | Container port | `5432` |
 
-The database names are listed in the
+The separate database names are listed in the
 [database ownership table](#database-ownership-rule). For example, Identity
-Service uses `identity_db` on `localhost:5433`:
+Service uses `identity_db` on the shared instance at `localhost:5433`:
 
 ```text
 jdbc:postgresql://localhost:5433/identity_db
 ```
 
-The password `workora123` is only for local development. Do not reuse it in
-staging or production. Replace the `POSTGRES_PASSWORD` values in
-`docker-compose.yml` with deployment secrets, and update each service's
-`DB_PASSWORD` environment variable to match. Existing PostgreSQL volumes keep
-their original credentials; changing the Compose file alone does not change
-an already-initialized database password.
+Each service uses a separate PostgreSQL login restricted to its own database.
+Copy the entries from
+[`tools/postgres/roles.env.example`](./tools/postgres/roles.env.example) into
+the ignored `.env` file and set a unique, strong password for each service.
+Compose fails with a clear message when a required service credential is
+missing. The existing `DB_USERNAME` and `DB_PASSWORD` are administrator
+credentials used only by the PostgreSQL container and local seed tooling; do
+not use them in application containers.
+
+The password shown here is only for local development. Do not reuse it in
+staging or production. Configure deployment credentials separately. The shared
+instance initializes all eight service databases when its data volume is first
+created; changing initialization settings does not alter an existing volume.
+
+### Migrating data from the previous local Compose setup
+
+The new shared instance uses a new Docker volume. Existing per-service database
+volumes are not imported or deleted automatically. If they contain data to
+keep, stop the application services, export each database from its existing
+container, stop the old database containers, start the new `postgres` service,
+and restore the dumps before restarting application services. Keep the old
+volumes and backups until you verify the restored data. Do not run
+`rebuild-all-compose.sh` or `remove-all-workora.sh` before taking these backups.
+
+The following Bash commands save restricted custom-format dumps outside the
+repository and restore each one into its matching database. Run them from the
+backend repository root, with the old database containers still available:
+
+```bash
+set -euo pipefail
+umask 077
+BACKUP_DIR="$HOME/workora-postgres-migration-$(date +%Y%m%d-%H%M%S)"
+mkdir "$BACKUP_DIR"
+
+docker compose --project-name workora-microservices-2 stop \
+  identity-service organization-service project-service work-service \
+  bug-service recruitment-service notification-service payment-service
+
+while IFS=: read -r container database; do
+  docker exec "workora-$container" sh -c \
+    'exec pg_dump --username "$POSTGRES_USER" --format=custom --dbname "$1"' \
+    sh "$database" > "$BACKUP_DIR/$database.dump"
+done <<'DATABASES'
+identity-db:identity_db
+organization-db:organization_db
+project-db:project_db
+work-db:task_db
+bug-db:bug_db
+recruitment-db:recruitment_db
+notification-db:notification_db
+payment-db:payment_db
+DATABASES
+
+docker container stop \
+  workora-identity-db workora-organization-db workora-project-db \
+  workora-work-db workora-bug-db workora-recruitment-db \
+  workora-notification-db workora-payment-db
+docker compose --project-name workora-microservices-2 up -d postgres
+
+for database in identity_db organization_db project_db task_db bug_db recruitment_db notification_db payment_db; do
+  docker exec -i workora-postgres sh -c '
+    case "$1" in
+      identity_db) username=$DB_IDENTITY_USERNAME; PGPASSWORD=$DB_IDENTITY_PASSWORD ;;
+      organization_db) username=$DB_ORGANIZATION_USERNAME; PGPASSWORD=$DB_ORGANIZATION_PASSWORD ;;
+      project_db) username=$DB_PROJECT_USERNAME; PGPASSWORD=$DB_PROJECT_PASSWORD ;;
+      task_db) username=$DB_WORK_USERNAME; PGPASSWORD=$DB_WORK_PASSWORD ;;
+      bug_db) username=$DB_BUG_USERNAME; PGPASSWORD=$DB_BUG_PASSWORD ;;
+      recruitment_db) username=$DB_RECRUITMENT_USERNAME; PGPASSWORD=$DB_RECRUITMENT_PASSWORD ;;
+      notification_db) username=$DB_NOTIFICATION_USERNAME; PGPASSWORD=$DB_NOTIFICATION_PASSWORD ;;
+      payment_db) username=$DB_PAYMENT_USERNAME; PGPASSWORD=$DB_PAYMENT_PASSWORD ;;
+      *) echo "Unknown database: $1" >&2; exit 2 ;;
+    esac
+    export PGPASSWORD
+    exec pg_restore --no-owner --no-acl --username "$username" --dbname "$1"
+  ' sh "$database" < "$BACKUP_DIR/$database.dump"
+done
+
+docker compose --project-name workora-microservices-2 up -d
+```
+
+If any export or restore fails, stop and resolve it before restarting the
+application services. The old named volumes are intentionally left in place;
+remove them separately only after the restored databases and backups have been
+verified.
 
 Keycloak is the identity provider and is available at:
 
@@ -428,10 +508,10 @@ disable/delete workflows, gateway rate limiting, refresh-token family
 revocation, and production TLS/observability remain roadmap items. They are
 not represented as implemented features.
 
-The databases are exposed on host ports `5433` through `5440`; inside the
-Compose network each database listens on its normal PostgreSQL port `5432`.
-Each Spring Boot service is configured to use its matching database by
-default. Start a service after the databases are healthy, for example:
+The shared PostgreSQL instance is exposed on host port `5433` and listens on
+port `5432` inside the Compose network. Each Spring Boot service is configured
+to use its matching database by default. Start a service after PostgreSQL is
+healthy, for example:
 
 ```bash
 mvn spring-boot:run -pl identity-service

@@ -14,7 +14,7 @@ spring:
   application:
     name: recruitment-service
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5438/recruitment_db}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/recruitment_db}
     username: ${DB_USERNAME:}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
