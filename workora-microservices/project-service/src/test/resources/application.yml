@@ -9,6 +9,11 @@ spring:
       ddl-auto: create-drop
     open-in-view: false
 
+storage:
+  minio:
+    access-key: test-access-key
+    secret-key: test-secret-key
+
 organization-service:
   base-url: http://localhost:9999
 
