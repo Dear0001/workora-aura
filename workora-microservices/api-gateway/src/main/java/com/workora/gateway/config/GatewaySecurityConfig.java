@@ -40,6 +40,7 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .pathMatchers(
+                                "/",
                                 "/actuator/health",
                                 "/api/identity/api/health",
                                 "/identify/actuator/health",

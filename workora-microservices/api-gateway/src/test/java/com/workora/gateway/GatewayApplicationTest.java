@@ -14,6 +14,17 @@ class GatewayApplicationTest {
     private WebTestClient webTestClient;
 
     @Test
+    void rootIsPublic() {
+        webTestClient.get()
+                .uri("/")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.message").isEqualTo("Workora API Gateway is running");
+    }
+
+    @Test
     void actuatorHealthIsPublic() {
         webTestClient.get()
                 .uri("/actuator/health")
